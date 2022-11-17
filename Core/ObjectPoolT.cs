@@ -3,29 +3,6 @@ using System.Runtime.CompilerServices;
 
 namespace Jay.SourceBuilderHelpers;
 
-public static class Reference
-{
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static T? CompareExchange<T>(ref T? location, T? value, T? comparand)
-        where T : class
-    {
-        var original = location;
-        if (ReferenceEquals(location, comparand))
-        {
-            location = value;
-        }
-        return original;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static T? Exchange<T>(ref T? location, T? value)
-    {
-        T? original = location;
-        location = value;
-        return original;
-    }
-}
-
 /// <summary>
 /// A thread-safe pool of <typeparamref name="T"/> instances.
 /// </summary>
@@ -33,6 +10,14 @@ public static class Reference
 public class ObjectPool<T> : IDisposable
     where T : class
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static T? Exchange(ref T? location, T? value)
+    {
+        T? original = location;
+        location = value;
+        return original;
+    }
+
     /// <summary>
     /// The default capacity any pool should start with
     /// </summary>
@@ -330,7 +315,7 @@ public class ObjectPool<T> : IDisposable
         if (_dispose != null)
         {
             var dispose = _dispose!;
-            T? item = Reference.Exchange<T?>(ref _firstItem, null);
+            T? item = Exchange(ref _firstItem, null);
             if (item != null)
             {
                 dispose(item);
@@ -339,7 +324,7 @@ public class ObjectPool<T> : IDisposable
             var items = _items;
             for (var i = 0; i < items.Length; i++)
             {
-                item = Reference.Exchange<T?>(ref items[i].Value, null);
+                item = Exchange(ref items[i].Value, null);
                 if (item != null)
                 {
                     dispose(item);
@@ -348,6 +333,5 @@ public class ObjectPool<T> : IDisposable
         }
 
         Debug.Assert(_items.All(item => item.Value == null));
-        GC.SuppressFinalize(this);
     }
 }

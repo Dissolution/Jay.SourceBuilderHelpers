@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Jay.SourceBuilderHelpers;
+﻿namespace Jay.SourceBuilderHelpers;
 
 public static class Utils
 {

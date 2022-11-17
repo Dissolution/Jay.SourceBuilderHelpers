@@ -1,22 +1,11 @@
-﻿using System.Diagnostics;
+﻿using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Jay.SourceBuilderHelpers.Text;
 
 public sealed class CharArrayWriter : IDisposable
 {
-    private static readonly ObjectPool<CharArrayWriter> _pool;
-
-    static CharArrayWriter()
-    {
-        _pool = new ObjectPool<CharArrayWriter>(
-            () => new CharArrayWriter(),
-            writer => writer.Clear());
-    }
-
-    public static CharArrayWriter Rent() => _pool.Rent();
-    public static void Return(CharArrayWriter writer) => _pool.Return(writer);
-
     private char[] _charArray;
     private int _length;
 
@@ -46,9 +35,21 @@ public sealed class CharArrayWriter : IDisposable
         get => _charArray.Length;
     }
 
-    private CharArrayWriter()
+    internal Span<char> Written
     {
-        _charArray = new char[1024];
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _charArray.AsSpan(0, _length);
+    }
+
+    internal Span<char> Available
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _charArray.AsSpan(_length);
+    }
+
+    public CharArrayWriter()
+    {
+        _charArray = ArrayPool<char>.Shared.Rent(1024);
         _length = 0;
     }
 
@@ -56,8 +57,9 @@ public sealed class CharArrayWriter : IDisposable
     private void Grow(int additionalChars)
     {
         int newCapacity = Math.Min((Capacity + additionalChars) * 2, Constants.Array_MaxLength);
-        var newArray = new char[newCapacity];
-        Array.Copy(_charArray, newArray, _length);
+        var newArray = ArrayPool<char>.Shared.Rent(newCapacity);
+        TextHelper.CopyTo(Written, newArray);
+        ArrayPool<char>.Shared.Return(_charArray);
         _charArray = newArray;
     }
 
@@ -76,10 +78,22 @@ public sealed class CharArrayWriter : IDisposable
     {
         Debug.Assert(text is not null);
         int i = _length;
+        int len = text!.Length;
+        Debug.Assert(i + len > Capacity);
+        Grow(len);
+        TextHelper.CopyTo(text.AsSpan(), Available);
+        _length = i + len;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void GrowWrite(ReadOnlySpan<char> text)
+    {
+        int i = _length;
         int len = text.Length;
         Debug.Assert(i + len > Capacity);
         Grow(len);
-        TextHelper.CopyTo(text, _charArray, i, len);
+        TextHelper.CopyTo(text, Available);
+        _length = i + len;
     }
 
     public void Write(char ch)
@@ -103,10 +117,10 @@ public sealed class CharArrayWriter : IDisposable
         {
             int i = _length;
             int len = text.Length;
-            var chars = _charArray;
-            if (i + len <= chars.Length)
+            var available = Available;
+            if (i + len <= available.Length)
             {
-                TextHelper.CopyTo(text, chars, i, len);
+                TextHelper.CopyTo(text.AsSpan(), available);
                 _length = i + len;
             }
             else
@@ -114,6 +128,32 @@ public sealed class CharArrayWriter : IDisposable
                 GrowWrite(text);
             }
         }
+    }
+
+    internal void Write(ReadOnlySpan<char> text)
+    {
+        int i = _length;
+        int len = text.Length;
+        var available = Available;
+        if (i + len <= available.Length)
+        {
+            TextHelper.CopyTo(text, available);
+            _length = i + len;
+        }
+        else
+        {
+            GrowWrite(text);
+        }
+    }
+
+    public void WriteSlice(string text, int offset)
+    {
+        Write(text.AsSpan(offset));
+    }
+
+    public void WriteSlice(string text, int offset, int length)
+    {
+        Write(text.AsSpan(offset, length));
     }
 
     public void Write<T>(T? value)
@@ -157,11 +197,9 @@ public sealed class CharArrayWriter : IDisposable
         return _length > 0 && _charArray[0] == ch;
     }
 
-    public bool StartsWith(string text)
-    {
-        return _length >= text.Length &&
-            TextHelper.Equals(text, _charArray, 0);
-    }
+    public bool StartsWith(string text) => StartsWith(text.AsSpan());
+
+    internal bool StartsWith(ReadOnlySpan<char> text) => Written.StartsWith(text);
 
     public bool EndsWith(char ch)
     {
@@ -169,12 +207,9 @@ public sealed class CharArrayWriter : IDisposable
             _charArray[Capacity-1] == ch;
     }
 
-    public bool EndsWith(string text)
-    {
-        int right = Length - text.Length;
-        return right >= 0 &&
-            TextHelper.Equals(text, _charArray, right);
-    }
+    public bool EndsWith(string text) => EndsWith(text.AsSpan());
+
+    internal bool EndsWith(ReadOnlySpan<char> text) => Written.EndsWith(text);
 
     public void Clear()
     {
@@ -183,7 +218,13 @@ public sealed class CharArrayWriter : IDisposable
 
     public void Dispose()
     {
-        _pool.Return(this);
+        var toReturn = _charArray;
+        _charArray = null!;
+        _length = 0;
+        if (toReturn is not null)
+        {
+            ArrayPool<char>.Shared.Return(toReturn);
+        }
     }
 
     public override string ToString()

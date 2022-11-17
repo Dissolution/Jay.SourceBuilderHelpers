@@ -1,12 +1,20 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{168E94E9-155F-4208-8F7D-5524FFDBED49}"
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33110.190
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{168E94E9-155F-4208-8F7D-5524FFDBED49}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Benchmarks", "Benchmarks\Benchmarks.csproj", "{6AF9BFF7-2167-4660-AC34-F9724E2092A3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmarks", "Benchmarks\Benchmarks.csproj", "{6AF9BFF7-2167-4660-AC34-F9724E2092A3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\Core.csproj", "{D1EA6CA7-69DA-4934-BC50-A76660077A1C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core", "Core\Core.csproj", "{D1EA6CA7-69DA-4934-BC50-A76660077A1C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp", "ConsoleApp\ConsoleApp.csproj", "{90F8F42B-A73B-45BB-8CAD-F3F5A0095668}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleApp", "ConsoleApp\ConsoleApp.csproj", "{90F8F42B-A73B-45BB-8CAD-F3F5A0095668}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{827CF22C-D2FC-4638-BAF8-3E3B76704BB9}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -30,5 +38,11 @@ Global
 		{90F8F42B-A73B-45BB-8CAD-F3F5A0095668}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90F8F42B-A73B-45BB-8CAD-F3F5A0095668}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90F8F42B-A73B-45BB-8CAD-F3F5A0095668}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BD69BACA-39CD-4313-BA11-97BF7E05B709}
 	EndGlobalSection
 EndGlobal
