@@ -1,8 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
-
 using static InlineIL.IL;
 
-namespace Jay.SourceBuilderHelpers.Text;
+namespace Jay.SourceGen.Text;
 
 public static class TextHelper
 {

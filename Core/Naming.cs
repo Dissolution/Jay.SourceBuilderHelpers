@@ -1,4 +1,4 @@
-﻿namespace Jay.SourceBuilderHelpers;
+﻿namespace Jay.SourceGen;
 
 public enum Naming
 {

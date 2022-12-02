@@ -2,34 +2,18 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Jay.SourceBuilderHelpers.Text;
+namespace Jay.SourceGen.Text;
 
+/// <summary>
+/// A utility to write text-like values to pooled <c>char[]</c> instances
+/// </summary>
 public sealed class CharArrayWriter : IDisposable
 {
     private char[] _charArray;
     private int _length;
 
-    public ref char this[int index]
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if ((uint)index < Capacity)
-            {
-                return ref _charArray[index];
-            }
-            throw new IndexOutOfRangeException();
-        }
-    }
 
-    public int Length
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _length;
-        set => _length = Utils.Clamp(value, 0, Constants.Array_MaxLength);
-    }
-
-    public int Capacity
+    internal int Capacity
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _charArray.Length;
@@ -47,6 +31,36 @@ public sealed class CharArrayWriter : IDisposable
         get => _charArray.AsSpan(_length);
     }
 
+    /// <summary>
+    /// Gets a <c>ref</c> to the <see cref="char"/> at the given <paramref name="index"/>
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="index"/> is less than 0 or greater than <see cref="Length"/></exception>
+    public ref char this[int index]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if ((uint)index < Length)
+            {
+                return ref _charArray[index];
+            }
+            throw new ArgumentOutOfRangeException(nameof(index), index, $"Index must be between 0 and {Length - 1}");
+        }
+    }
+
+    /// <summary>
+    /// Gets the current number of <see cref="char"/>acters written
+    /// </summary>
+    public int Length
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _length;
+        set => _length = value.Clamp(0, Capacity);
+    }
+
+    /// <summary>
+    /// Creates a new instance of a <see cref="CharArrayWriter"/>
+    /// </summary>
     public CharArrayWriter()
     {
         _charArray = ArrayPool<char>.Shared.Rent(1024);
@@ -56,7 +70,7 @@ public sealed class CharArrayWriter : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void Grow(int additionalChars)
     {
-        int newCapacity = Math.Min((Capacity + additionalChars) * 2, Constants.Array_MaxLength);
+        int newCapacity = ((Capacity + additionalChars) * 2).Clamp(1024, Constants.Pool_MaxCapacity);
         var newArray = ArrayPool<char>.Shared.Rent(newCapacity);
         TextHelper.CopyTo(Written, newArray);
         ArrayPool<char>.Shared.Return(_charArray);
@@ -146,16 +160,6 @@ public sealed class CharArrayWriter : IDisposable
         }
     }
 
-    public void WriteSlice(string text, int offset)
-    {
-        Write(text.AsSpan(offset));
-    }
-
-    public void WriteSlice(string text, int offset, int length)
-    {
-        Write(text.AsSpan(offset, length));
-    }
-
     public void Write<T>(T? value)
     {
         if (value is IFormattable)
@@ -218,7 +222,7 @@ public sealed class CharArrayWriter : IDisposable
 
     public void Dispose()
     {
-        var toReturn = _charArray;
+        char[]? toReturn = _charArray;
         _charArray = null!;
         _length = 0;
         if (toReturn is not null)

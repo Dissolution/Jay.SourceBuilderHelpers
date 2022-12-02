@@ -16,6 +16,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Generators", "Generators\Generators.csproj", "{799DA3F4-531D-4B9E-8C03-6E8199909C0A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnumCode", "EnumCode\EnumCode.csproj", "{316EF3F7-9475-446E-B181-8A64A73B1431}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +42,14 @@ Global
 		{90F8F42B-A73B-45BB-8CAD-F3F5A0095668}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90F8F42B-A73B-45BB-8CAD-F3F5A0095668}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90F8F42B-A73B-45BB-8CAD-F3F5A0095668}.Release|Any CPU.Build.0 = Release|Any CPU
+		{799DA3F4-531D-4B9E-8C03-6E8199909C0A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{799DA3F4-531D-4B9E-8C03-6E8199909C0A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{799DA3F4-531D-4B9E-8C03-6E8199909C0A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{799DA3F4-531D-4B9E-8C03-6E8199909C0A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{316EF3F7-9475-446E-B181-8A64A73B1431}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{316EF3F7-9475-446E-B181-8A64A73B1431}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{316EF3F7-9475-446E-B181-8A64A73B1431}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{316EF3F7-9475-446E-B181-8A64A73B1431}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

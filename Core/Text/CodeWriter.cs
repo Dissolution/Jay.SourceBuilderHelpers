@@ -3,7 +3,7 @@
 // Purely for performance reasons
 // ReSharper disable MergeCastWithTypeCheck
 
-namespace Jay.SourceBuilderHelpers.Text;
+namespace Jay.SourceGen.Text;
 
 /// <summary>
 /// A fluent, reusable C# code writer
@@ -151,6 +151,15 @@ public sealed class CodeWriter : IDisposable
     }
 
     /// <summary>
+    /// Writes the given <c>ReadOnlySpan&lt;char&gt;</c>
+    /// </summary>
+    public CodeWriter Write(ReadOnlySpan<char> text)
+    {
+        _writer.Write(text);
+        return this;
+    }
+
+    /// <summary>
     /// Writes the given <see cref="string"/>
     /// </summary>
     public CodeWriter Write(string? text)
@@ -279,14 +288,6 @@ public sealed class CodeWriter : IDisposable
     {
         return Write<T>(value).NewLine();
     }
-
-    public CodeWriter Type(Type type)
-    {
-        CodeFormatter.WriteCodeTo(type, _writer);
-        return this;
-    }
-
-    public CodeWriter Type<T>() => this.Type(typeof(T));
 
     public CodeWriter BracketBlock(Action<CodeWriter> bracketBlock)
     {

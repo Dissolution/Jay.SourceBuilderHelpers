@@ -1,4 +1,4 @@
-﻿namespace Jay.SourceBuilderHelpers.Text;
+﻿namespace Jay.SourceGen.Text;
 
 public sealed class CodeWriterOptions
 {
