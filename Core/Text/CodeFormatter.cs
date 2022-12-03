@@ -284,6 +284,12 @@ public static class CodeFormatter
         }
 
         var valueType = value.GetType();
+        if (valueType.IsEnum)
+        {
+            string code = value.ToEnumCode()!;
+            Debugger.Break();
+        }
+
         Debugger.Break();
 
         if (codeFormat == CodeFormat.TypeDetails)

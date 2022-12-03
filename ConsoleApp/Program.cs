@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Drawing;
 using System.Reflection;
 using Jay.SourceGen.Text;
 
@@ -65,10 +66,15 @@ var outputPath = result.ResultsDirectoryPath;
 //
 // string code = codeWriter.ToString();
 
-var vis = Visibility.Public;
+Visibility vis = typeof(Point)
+    .GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+    .First()
+    .GetVisibility();
 var coder = vis.ToCode();
+var e = vis.ToEnumCode();
 
 Console.WriteLine(coder);
+Console.WriteLine(e);
 
 Debugger.Break();
 
