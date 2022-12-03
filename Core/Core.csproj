@@ -15,24 +15,24 @@
         <None Include="..\.editorconfig" Link=".editorconfig" />
     </ItemGroup>
 
-    <!-- .NET Standard 2.0 ONLY Includes-->
-    <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
+
+    <ItemGroup>
         <PackageReference Include="System.Buffers" Version="4.5.1">
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
+
         <PackageReference Include="System.Memory" Version="4.5.5">
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
+
         <PackageReference Include="Nullable" Version="1.3.1">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+
         <PackageReference Include="IndexRange" Version="1.0.2">
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
-    </ItemGroup>
-
-    <ItemGroup>
 
         <PackageReference Include="Fody" Version="6.6.4">
             <PrivateAssets>all</PrivateAssets>
@@ -54,10 +54,18 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\EnumCode\EnumCode.csproj" 
-                        OutputItemType="Analyzer" 
-                        ReferenceOutputAssembly="true"
-                        PrivateAssets="all"/>
+        <!-- Rererence the source generator project -->
+        <ProjectReference Include="..\EnumCode\EnumCode.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" 
+                          PrivateAssets="all"/>
+        <!-- Don't reference the generator dll -->
+
+        <!-- Rererence the attributes project "treat as an analyzer"-->
+        <ProjectReference Include="..\EnumToCode.Attributes\EnumToCode.Attributes.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="true" />
+        <!-- We DO reference the attributes dll -->
     </ItemGroup>
 
 </Project>

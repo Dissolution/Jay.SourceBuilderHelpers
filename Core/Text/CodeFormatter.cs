@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
+using Jay.SourceGen.Enums;
 
 namespace Jay.SourceGen.Text;
 
@@ -19,11 +20,12 @@ public enum MemberFormat
     Declaration = 1,
 }
 
-//[ToCode]
+[EnumToCode(Naming = Naming.Lower)]
 [Flags]
 public enum Visibility
 {
     None = 0,
+    [EnumToCode(Code = "PRIVATE")]
     Private = 1 << 0,
     Protected = 1 << 1,
     Internal  = 1 << 2,
@@ -68,6 +70,11 @@ public static class FieldInfoExtensions
             vis |= Visibility.Internal;
         if (field.IsPublic)
             vis |= Visibility.Public;
+        //return vis;
+
+        var code = vis.ToEnumCode();
+
+        Debugger.Break();
         return vis;
     }
 }

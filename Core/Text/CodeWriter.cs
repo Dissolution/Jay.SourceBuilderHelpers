@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using Jay.SourceGen.Enums;
 
 // Purely for performance reasons
 // ReSharper disable MergeCastWithTypeCheck
