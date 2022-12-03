@@ -8,12 +8,6 @@ namespace Jay.SourceGen;
 
 public static class Extensions
 {
-    // internal static string ToEnumCode<TEnum>(this TEnum @enum)
-    //    // where TEnum : struct, Enum
-    // {
-    //     return @enum.ToString();
-    // }
-
     public static int Clamp(this int value, int min, int max)
     {
         return value < min ? min : value > max ? max : value;
