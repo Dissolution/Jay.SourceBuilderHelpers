@@ -1,6 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Text;
+using Jay.SourceGen.Reflection;
 using Jay.SourceGen.Text;
 
 #if RELEASE
@@ -71,10 +74,8 @@ Visibility vis = typeof(Point)
     .First()
     .GetVisibility();
 var coder = vis.ToCode();
-var e = vis.ToEnumCode();
 
 Console.WriteLine(coder);
-Console.WriteLine(e);
 
 Debugger.Break();
 

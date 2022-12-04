@@ -7,5 +7,4 @@ public sealed class CodeWriterOptions
     public string NewLine { get; set; } = Environment.NewLine;
 
     public bool UseJavaStyleBraces { get; set; } = false;
-
 }

@@ -11,3 +11,21 @@
   - Field: _name
   - Camel: name
   - Pascal: Name
+
+
+
+
+    <ItemGroup>
+        <!-- Rererence the source generator project -->
+        <ProjectReference Include="..\EnumCode\EnumCode.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+        <!-- Don't reference the generator dll -->
+
+        <!-- Rererence the attributes project "treat as an analyzer"-->
+        <ProjectReference Include="..\EnumToCode.Attributes\EnumToCode.Attributes.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="true" />
+        <!-- We DO reference the attributes dll -->
+    </ItemGroup>

@@ -1,44 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
-using Jay.SourceGen.Enums;
+using System.Runtime.CompilerServices;
+using Jay.SourceGen.Reflection;
 
 namespace Jay.SourceGen.Text;
-
-
-
-[Flags]
-public enum CodeFormat
-{
-    Reference = 0,
-    TypeDetails = 1 << 0,
-}
-
-
-public enum MemberFormat
-{
-    Reference = 0,
-    Declaration = 1,
-}
-
-[EnumToCode(Naming = Naming.Lower)]
-[Flags]
-public enum Visibility
-{
-    None = 0,
-    [EnumToCode(Code = "PRIVATE")]
-    Private = 1 << 0,
-    Protected = 1 << 1,
-    Internal  = 1 << 2,
-    Public = 1 << 3,
-}
-
-[Flags]
-public enum Access
-{
-    None = 0,
-    Instance = 1 << 0,
-    Static = 1 << 1,
-}
 
 // public static partial class ToCodeExtensions
 // {
@@ -55,38 +20,6 @@ public enum Access
 //     }
 // }
 
-
-
-public static class FieldInfoExtensions
-{
-    public static Visibility GetVisibility(this FieldInfo field)
-    {
-        Visibility vis = default;
-        if (field.IsPrivate)
-            vis |= Visibility.Private;
-        if (field.IsFamily)
-            vis |= Visibility.Protected;
-        if (field.IsAssembly)
-            vis |= Visibility.Internal;
-        if (field.IsPublic)
-            vis |= Visibility.Public;
-        //return vis;
-
-        var code = vis.ToEnumCode();
-
-        Debugger.Break();
-        return vis;
-    }
-}
-
-public static class MemberInfoExtensions
-{
-    public static Visibility GetVisibility(this MemberInfo member)
-    {
-        throw new NotImplementedException();
-    }
-}
-
 public static class CodeFormatter
 {
     /* Notes:
@@ -100,28 +33,167 @@ public static class CodeFormatter
         return writer.Write("null");
     }
 
-    public static CodeWriter WriteField(this CodeWriter writer, 
+    private static CodeWriter WriteVisibility(this CodeWriter codeWriter, Visibility visibility)
+    {
+        if (visibility.HasFlag(Visibility.Private))
+        {
+            codeWriter.Write("private ");
+        }
+
+        if (visibility.HasFlag(Visibility.Protected))
+        {
+            codeWriter.Write("protected ");
+        }
+
+        if (visibility.HasFlag(Visibility.Internal))
+        {
+            codeWriter.Write("internal ");
+        }
+
+        if (visibility.HasFlag(Visibility.Public))
+        {
+            codeWriter.Write("public ");
+        }
+
+        return codeWriter;
+    }
+
+    public static CodeWriter WriteAccess(this CodeWriter writer, Access access)
+    {
+        if (access == Access.Static)
+        {
+            return writer.Write("static ");
+        }
+        else
+        {
+            return writer;
+        }
+    }
+
+    public static CodeWriter WriteField(this CodeWriter writer,
         FieldInfo field,
         MemberFormat format = default)
     {
         if (format == MemberFormat.Declaration)
         {
-
-        }
-        else
-        {
-
-            return writer.WriteType(field.FieldType)
-                .Write(' ')
-                .WriteType(field.ReflectedType ?? field.DeclaringType)
-                .Write('.')
-                .Write(field.Name);
+            writer.WriteVisibility(field.GetVisibility())
+                .WriteAccess(field.GetAccess());
         }
 
-        throw new NotImplementedException();
+        return writer.WriteType(field.FieldType)
+            .Write(' ')
+            .WriteType(field.OwningType())
+            .Write('.')
+            .Write(field.Name);
     }
 
-    public static CodeWriter WriteType(this CodeWriter writer, Type? type, CodeFormat codeFormat = CodeFormat.Reference)
+    public static CodeWriter WriteProperty(this CodeWriter writer,
+        PropertyInfo property,
+        MemberFormat format = default)
+    {
+        if (format != MemberFormat.Declaration)
+        {
+            return writer.WriteType(property.PropertyType)
+                .Write(' ')
+                .WriteType(property.OwningType())
+                .Write('.')
+                .Write(property.Name);
+        }
+
+        var access = property.GetAccess();
+        var visibility = property.GetVisibility();
+        writer.WriteVisibility(visibility)
+            .WriteAccess(access)
+            .WriteType(property.PropertyType)
+            .Write(' ')
+            .WriteType(property.OwningType())
+            .Write('.')
+            .Write(property.Name)
+            .Write(" { ");
+        var getter = property.Getter();
+        if (getter is not null)
+        {
+            var getVis = getter.GetVisibility();
+            if (getVis != visibility)
+                writer.WriteVisibility(getVis);
+            writer.Write("get; ");
+        }
+
+        var setter = property.Setter();
+        if (setter is not null)
+        {
+            var setVis = setter.GetVisibility();
+            if (setVis != visibility)
+                writer.WriteVisibility(setVis);
+            writer.Write("set; ");
+        }
+
+        return writer.Write('}');
+    }
+
+    public static CodeWriter WriteEvent(this CodeWriter writer,
+        EventInfo eventInfo,
+        MemberFormat format = default)
+    {
+        if (format == MemberFormat.Declaration)
+        {
+            writer.WriteVisibility(eventInfo.GetVisibility())
+                .WriteAccess(eventInfo.GetAccess());
+        }
+
+        return writer.WriteType(eventInfo.EventHandlerType)
+            .Write(' ')
+            .WriteType(eventInfo.OwningType())
+            .Write('.')
+            .Write(eventInfo.Name);
+    }
+
+
+    public static CodeWriter WriteConstructor(this CodeWriter writer,
+        ConstructorInfo constructor,
+        MemberFormat format = default)
+    {
+        if (format == MemberFormat.Declaration)
+        {
+            var access = constructor.GetAccess();
+            if (access == Access.Static)
+            {
+                writer.WriteAccess(access);
+            }
+            else
+            {
+                var visibility = constructor.GetVisibility();
+                writer.WriteVisibility(visibility);
+            }
+        }
+
+        return writer.WriteType(constructor.DeclaringType!)
+            .Write('(')
+            .Delimited(", ", constructor.GetParameters(), static (w, p) => w.WriteParameter(p))
+            .Write(')');
+    }
+
+    public static CodeWriter WriteMethod(this CodeWriter writer,
+        MethodInfo method,
+        MemberFormat format = default)
+    {
+        if (format == MemberFormat.Declaration)
+        {
+            writer.WriteVisibility(method.GetVisibility())
+                .WriteAccess(method.GetAccess());
+        }
+
+        return writer.WriteType(method.ReturnType)
+            .Write(' ')
+            .WriteType(method.OwningType())
+            .Write('.')
+            .Write(method.Name)
+            .Write('(')
+            .Delimited(", ", method.GetParameters(), static (w, p) => w.WriteParameter(p))
+            .Write(')');
+    }
+
+    public static CodeWriter WriteType(this CodeWriter writer, Type? type)
     {
         if (type == null)
             return writer.Write("(Type?)null");
@@ -166,7 +238,7 @@ public static class CodeFormatter
         {
             return writer.Write(type.Name);
         }
-        
+
         // Pointer:  "{typeof(T)}*"
         if (type.IsPointer)
         {
@@ -233,10 +305,44 @@ public static class CodeFormatter
 
         var genericTypes = type.GetGenericArguments();
         return writer.Write('<')
-                .Delimited(",", genericTypes, static (writer, genericType) => writer.WriteType(genericType))
-                .Write('>');
+            .Delimited(",", genericTypes, static (writer, genericType) => writer.WriteType(genericType))
+            .Write('>');
     }
 
+    public static CodeWriter WriteParameter(this CodeWriter writer,
+        ParameterInfo parameter)
+    {
+        Type parameterType = parameter.ParameterType;
+        if (parameterType.IsByRef)
+        {
+            if (parameter.IsIn)
+            {
+                writer.Write("in ");
+            }
+            else if (parameter.IsOut)
+            {
+                writer.Write("out ");
+            }
+            else
+            {
+                writer.Write("ref ");
+            }
+
+            parameterType = parameterType.GetElementType()!;
+        }
+
+        writer.WriteType(parameterType)
+            .Write(' ')
+            .Write(parameter.Name ?? "???");
+
+        if (parameter.HasDefaultValue)
+        {
+            writer.Write(" = ")
+                .Write(parameter.DefaultValue);
+        }
+
+        return writer;
+    }
 
     public static CodeWriter WriteCode<T>(
         this CodeWriter writer,
@@ -250,7 +356,7 @@ public static class CodeFormatter
             case bool boolean:
                 return writer.Write(boolean ? "true" : "false");
             case byte or sbyte or short or ushort:
-                return writer.Write('(').WriteType(value.GetType(), codeFormat).Write(')').Write<T>(value);
+                return writer.Write('(').WriteType(value.GetType()).Write(')').Write<T>(value);
             case int int32:
                 return writer.Write<int>(int32);
             case uint uint32:
@@ -278,7 +384,19 @@ public static class CodeFormatter
             case string str:
                 return writer.Write('"').Write(str).Write('"');
             case Type type:
-                return WriteType(writer, type, codeFormat);
+                return WriteType(writer, type);
+            case FieldInfo field:
+                return WriteField(writer, field);
+            case PropertyInfo property:
+                return WriteProperty(writer, property);
+            case EventInfo eventInfo:
+                return WriteEvent(writer, eventInfo);
+            case ConstructorInfo constructor:
+                return WriteConstructor(writer, constructor);
+            case MethodInfo method:
+                return WriteMethod(writer, method);
+            case ParameterInfo parameter:
+                return WriteParameter(writer, parameter);
             default:
                 break;
         }
@@ -286,11 +404,17 @@ public static class CodeFormatter
         var valueType = value.GetType();
         if (valueType.IsEnum)
         {
-            string code = value.ToEnumCode()!;
+            // Todo: make this faster!
+            string name = Enum.GetName(valueType, value) ?? "TEnum";
+            return writer.Write(name);
+        }
+
+        // Complex member?
+        if (codeFormat == CodeFormat.TypeDetails)
+        {
             Debugger.Break();
         }
 
-        Debugger.Break();
 
         if (codeFormat == CodeFormat.TypeDetails)
             writer.Write('(').WriteType(valueType).Write(')');
@@ -305,107 +429,3 @@ public static class CodeFormatter
         return writer.ToString();
     }
 }
-
-/*
-public static class CodeFormatter2
-{
-
-
-    internal static void WriteCodeTo<T>(this T? value, CharArrayWriter writer)
-    {
-        if (value is null)
-        {
-            writer.Write('(');
-            WriteTypeTo(typeof(T), writer);
-            writer.Write(")null");
-            return;
-        }
-
-        switch (Type.GetTypeCode(typeof(T)))
-        {
-            case TypeCode.Empty:
-                writer.Write("null");
-                return;
-            case TypeCode.DBNull:
-                writer.Write("DBNull.Value");
-                return;
-            case TypeCode.Boolean:
-                writer.Write("(bool)");
-                writer.Write<T>(value);
-                return;
-            case TypeCode.Byte:
-                writer.Write("(byte)");
-                writer.Write<T>(value);
-                return;
-            case TypeCode.SByte:
-                writer.Write("(sbyte)");
-                writer.Write<T>(value);
-                return;
-            case TypeCode.Int16:
-                writer.Write("(short)");
-                writer.Write<T>(value);
-                return;
-            case TypeCode.UInt16:
-                writer.Write("(ushort)");
-                writer.Write<T>(value);
-                return;
-            case TypeCode.Int32:
-                writer.Write<T>(value);
-                return;
-            case TypeCode.UInt32:
-                writer.Write<T>(value);
-                writer.Write('U');
-                return;
-            case TypeCode.Int64:
-                writer.Write<T>(value);
-                writer.Write('L');
-                return;
-            case TypeCode.UInt64:
-                writer.Write<T>(value);
-                writer.Write("UL");
-                return;
-            case TypeCode.Single:
-                writer.Write<T>(value);
-                writer.Write('f');
-                return;
-            case TypeCode.Double:
-                writer.Write<T>(value);
-                writer.Write('d');
-                return;
-            case TypeCode.Decimal:
-                writer.Write<T>(value);
-                writer.Write('m');
-                return;
-            case TypeCode.Char:
-                writer.Write('\'');
-                writer.Write<T>(value);
-                writer.Write('\'');
-                return;
-            case TypeCode.String:
-                writer.Write('"');
-                writer.Write<T>(value);
-                writer.Write('"');
-                return;
-            case TypeCode.DateTime:
-            case TypeCode.Object:
-            default:
-                break;
-        }
-
-        if (value is Type type)
-        {
-            WriteTypeTo(type, writer);
-            return;
-        }
-
-        // Default to just the value
-        writer.Write<T>(value);
-    }
-
-    public static string ToCode<T>(this T? value)
-    {
-        using var writer = new CharArrayWriter();
-        WriteCodeTo<T>(value, writer);
-        return writer.ToString();
-    }
-}*/

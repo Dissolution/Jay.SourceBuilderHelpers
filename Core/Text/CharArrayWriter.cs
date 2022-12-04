@@ -11,21 +11,20 @@ public sealed class CharArrayWriter : IDisposable
 {
     private char[] _charArray;
     private int _length;
-
-
-    internal int Capacity
+    
+    public int Capacity
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _charArray.Length;
     }
 
-    internal Span<char> Written
+    public Span<char> Written
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _charArray.AsSpan(0, _length);
     }
 
-    internal Span<char> Available
+    public Span<char> Available
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _charArray.AsSpan(_length);
@@ -144,7 +143,7 @@ public sealed class CharArrayWriter : IDisposable
         }
     }
 
-    internal void Write(ReadOnlySpan<char> text)
+    public void Write(ReadOnlySpan<char> text)
     {
         int i = _length;
         int len = text.Length;
@@ -165,6 +164,18 @@ public sealed class CharArrayWriter : IDisposable
         if (value is IFormattable)
         {
             Write(((IFormattable)value).ToString(default, default));
+        }
+        else
+        {
+            Write(value?.ToString());
+        }
+    }
+
+    public void WriteFormat<T>(T? value, string? format, IFormatProvider? provider = null)
+    {
+        if (value is IFormattable)
+        {
+            Write(((IFormattable)value).ToString(format, provider));
         }
         else
         {
