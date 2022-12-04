@@ -69,15 +69,31 @@ var outputPath = result.ResultsDirectoryPath;
 //
 // string code = codeWriter.ToString();
 
-Visibility vis = typeof(Point)
-    .GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-    .First()
-    .GetVisibility();
-var coder = vis.ToCode();
 
-Console.WriteLine(coder);
+string name = TestEnum.Beta.Name();
+
 
 Debugger.Break();
 
 
 #endif
+
+
+public enum TestEnum
+{
+    Default,
+    Alpha,
+    Beta,
+    Gamma,
+    Delta,
+}
+
+[Flags]
+public enum TestFlagsEnum
+{
+    Default = 0,
+    Alpha = 1 << 0,
+    Beta = 1 << 1,
+    Gamma = 1 << 2,
+    Delta = 1 << 3,
+}

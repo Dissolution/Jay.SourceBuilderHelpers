@@ -63,6 +63,12 @@ public sealed partial class CodeWriter : IDisposable
             .WriteLine("// </auto-generated>");
     }
 
+    public CodeWriter Nullable(bool enable)
+    {
+        return Write("#nullable ")
+            .Write(enable ? "enable" : "disable")
+            .WriteLine();
+    }
 
     /// <summary>
     /// Writes a `using <paramref name="nameSpace"/>;` line
@@ -89,6 +95,15 @@ public sealed partial class CodeWriter : IDisposable
         return this;
     }
 
+    public CodeWriter Namespace(string? nameSpace)
+    {
+        if (!string.IsNullOrWhiteSpace(nameSpace))
+        {
+            return Write("namespace ").Write(nameSpace).WriteLine(';');
+        }
+
+        return this;
+    }
 
 
     /// <summary>
@@ -136,7 +151,7 @@ public sealed partial class CodeWriter : IDisposable
         }
         else
         {
-            return Write("/* ").WriteLine(lines[0])
+            Write("/* ").WriteLine(lines[0])
                 .IndentBlock(" * ", ic =>
                 {
                     ic.WriteLines(lines.Skip(1), static (c, s) => c._writer.Write(s));
@@ -144,6 +159,8 @@ public sealed partial class CodeWriter : IDisposable
                 .EnsureOnNewLine()
                 .WriteLine(" */");
         }
+
+        return this;
     }
 
     /// <summary>

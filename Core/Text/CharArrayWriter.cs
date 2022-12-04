@@ -80,7 +80,7 @@ public sealed class CharArrayWriter : IDisposable
     private void GrowWrite(char ch)
     {
         int i = _length;
-        Debug.Assert(i + 1 > Capacity);
+        Debug.Assert(i + 1 >= Capacity);
         Grow(1);
         _charArray[i] = ch;
         _length = i + 1;
@@ -128,13 +128,12 @@ public sealed class CharArrayWriter : IDisposable
     {
         if (text is not null)
         {
-            int i = _length;
             int len = text.Length;
             var available = Available;
-            if (i + len <= available.Length)
+            if (len <= available.Length)
             {
                 TextHelper.CopyTo(text.AsSpan(), available);
-                _length = i + len;
+                _length += len;
             }
             else
             {
@@ -145,13 +144,12 @@ public sealed class CharArrayWriter : IDisposable
 
     public void Write(ReadOnlySpan<char> text)
     {
-        int i = _length;
         int len = text.Length;
         var available = Available;
-        if (i + len <= available.Length)
+        if (len <= available.Length)
         {
             TextHelper.CopyTo(text, available);
-            _length = i + len;
+            _length += len;
         }
         else
         {
