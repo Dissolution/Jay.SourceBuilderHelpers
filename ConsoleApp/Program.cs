@@ -71,8 +71,12 @@ var outputPath = result.ResultsDirectoryPath;
 
 
 string name = TestEnum.Beta.Name();
-int flagCount = (TestFlagsEnum.Alpha | TestFlagsEnum.Beta).FlagCount();
 
+var e = (TestFlagsEnum.Alpha | TestFlagsEnum.Beta | TestFlagsEnum.Gamma);
+int flagCount = e.FlagCount();
+bool hasFlag = e.HasFlag(TestFlagsEnum.Alpha);
+var withFlag = e.WithFlag(TestFlagsEnum.Delta);
+var withoutFlag = e.WithoutFlag(TestFlagsEnum.Beta);
 
 
 Debugger.Break();

@@ -502,11 +502,9 @@ public sealed partial class CodeWriter : IDisposable
         _writer.Dispose();
     }
 
-    [Obsolete("Not Supported", true)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public override bool Equals(object? obj) => throw new NotSupportedException();
 
-    [Obsolete("Not Supported", true)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public override int GetHashCode() => throw new NotSupportedException();
 

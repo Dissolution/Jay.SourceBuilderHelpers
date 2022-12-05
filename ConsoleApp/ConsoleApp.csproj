@@ -10,7 +10,11 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Core\Core.csproj" />
-        <ProjectReference Include="..\EnumGen\EnumGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+
+        <ProjectReference Include="..\EnumGen\EnumGen.csproj" 
+                          OutputItemType="Analyzer" 
+                          ReferenceOutputAssembly="false" 
+                          PrivateAssets="all" />
     </ItemGroup>
 
 

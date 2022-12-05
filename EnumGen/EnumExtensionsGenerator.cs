@@ -95,7 +95,7 @@ public class EnumToCodeGenerator : IIncrementalGenerator
     private static string GetEnumVariableName(EnumInfo enumInfo)
     {
         var name = enumInfo.FQN.WithNaming(Naming.Camel);
-        if (SyntaxFacts.IsValidIdentifier(name))
+        if (SyntaxFacts.IsValidIdentifier(name) || name.StartsWith("flag"))
         {
             return "value";
         }
@@ -144,11 +144,29 @@ public class EnumToCodeGenerator : IIncrementalGenerator
     private static void AddFlagsExtensionsMethods(CodeWriter writer, EnumInfo enumInfo)
     {
         var enumVariableName = GetEnumVariableName(enumInfo);
-        writer.WriteLine($"public static int FlagCount(this {enumInfo.Name} {enumVariableName})")
-            .BracketBlock(methodBlock =>
+
+        writer.Parse($$"""
+            public static int FlagCount(this {{enumInfo.Name}} {{enumVariableName}})
             {
-                methodBlock.WriteLine($"return EnumExtensions.PopCount((long){enumVariableName});");
-            }).WriteLine();
+                return EnumExtensions.PopCount((long){{enumVariableName}});
+            }
+
+            public static bool HasFlag(this {{enumInfo.Name}} {{enumVariableName}}, {{enumInfo.Name}} flag)
+            {
+                return ({{enumVariableName}} & flag) != 0;
+            }
+
+            public static {{enumInfo.Name}} WithFlag(this {{enumInfo.Name}} {{enumVariableName}}, {{enumInfo.Name}} flag)
+            {
+                return ({{enumVariableName}} | flag);
+            }
+
+            public static {{enumInfo.Name}} WithoutFlag(this {{enumInfo.Name}} {{enumVariableName}}, {{enumInfo.Name}} flag)
+            {
+                return ({{enumVariableName}} & ~flag);
+            }
+
+            """).WriteLine();
     }
 
     /*
@@ -185,6 +203,10 @@ public class EnumToCodeGenerator : IIncrementalGenerator
                     }
                 });
                 var code = writer.ToString();
+                if (Debugger.IsAttached)
+                {
+                    Debugger.Break();
+                }
                 context.AddSource($"{enumInfo.Name}Extensions.g.cs", 
                     SourceText.From(code, Encoding.UTF8));
             }
