@@ -115,7 +115,7 @@ public class EnumToCodeGenerator : IIncrementalGenerator
             .BracketBlock(addMethods);
     }
 
-    private static void AddNameExtensionMethod(CodeWriter writer, EnumInfo enumInfo)
+    private static void AddExtensionMethods(CodeWriter writer, EnumInfo enumInfo)
     {
         var enumVariableName = GetEnumVariableName(enumInfo);
         writer.Write("public static string Name(this ")
@@ -135,7 +135,6 @@ public class EnumToCodeGenerator : IIncrementalGenerator
                                 .Write(enumInfo.Name).Write('.').Write(member)
                                 .WriteLine("),");
                         }
-
                         switchBlock.Write("_ => ").Write(enumVariableName).WriteLine(".ToString() ?? \"\",");
                     }).WriteLine(';');
             }).WriteLine();
@@ -143,27 +142,58 @@ public class EnumToCodeGenerator : IIncrementalGenerator
 
     private static void AddFlagsExtensionsMethods(CodeWriter writer, EnumInfo enumInfo)
     {
+        var enumName = enumInfo.Name;
         var enumVariableName = GetEnumVariableName(enumInfo);
 
         writer.Parse($$"""
-            public static int FlagCount(this {{enumInfo.Name}} {{enumVariableName}})
+            public static int FlagCount(this {{enumName}} {{enumVariableName}})
             {
                 return EnumExtensions.PopCount((long){{enumVariableName}});
             }
 
-            public static bool HasFlag(this {{enumInfo.Name}} {{enumVariableName}}, {{enumInfo.Name}} flag)
+            public static bool HasFlag(this {{enumName}} {{enumVariableName}}, {{enumInfo.Name}} flag)
             {
                 return ({{enumVariableName}} & flag) != 0;
             }
 
-            public static {{enumInfo.Name}} WithFlag(this {{enumInfo.Name}} {{enumVariableName}}, {{enumInfo.Name}} flag)
+            public static bool HasAnyFlags(this {{enumName}} {{enumVariableName}}, params {{enumName}}[] flags)
+            {
+                {{enumName}} flag = default;
+                for (var i = 0; i < flags.Length; i++)
+                {
+                    flag |= flags[i];
+                }
+                return ({{enumVariableName}} & flag) != 0;
+            }
+
+            public static bool HasAllFlags(this {{enumName}} {{enumVariableName}}, params {{enumName}}[] flags)
+            {
+                {{enumName}} flag = default;
+                for (var i = 0; i < flags.Length; i++)
+                {
+                    flag |= flags[i];
+                }
+                return ({{enumVariableName}} & flag) == flag;
+            }
+
+            public static {{enumName}} WithFlag(this {{enumName}} {{enumVariableName}}, {{enumName}} flag)
             {
                 return ({{enumVariableName}} | flag);
             }
 
-            public static {{enumInfo.Name}} WithoutFlag(this {{enumInfo.Name}} {{enumVariableName}}, {{enumInfo.Name}} flag)
+            public static {{enumName}} WithoutFlag(this {{enumName}} {{enumVariableName}}, {{enumName}} flag)
             {
                 return ({{enumVariableName}} & ~flag);
+            }
+
+            public static void AddFlag(this ref {{enumName}} {{enumVariableName}}, {{enumName}} flag)
+            {
+                {{enumVariableName}} |= flag;
+            }
+
+            public static void RemoveFlag(this ref {{enumName}} {{enumVariableName}}, {{enumName}} flag)
+            {
+                {{enumVariableName}} &= ~flag;
             }
 
             """).WriteLine();
@@ -195,11 +225,13 @@ public class EnumToCodeGenerator : IIncrementalGenerator
                 using var writer = new CodeWriter();
                 WriteExtensions(writer, enumInfo, methodWriter =>
                 {
-                    AddNameExtensionMethod(methodWriter, enumInfo);
-
                     if (enumInfo.HasFlags)
                     {
                         AddFlagsExtensionsMethods(methodWriter, enumInfo);
+                    }
+                    else
+                    {
+                        AddExtensionMethods(methodWriter, enumInfo);
                     }
                 });
                 var code = writer.ToString();

@@ -1,10 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Drawing;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
-using Jay.SourceGen.Reflection;
-using Jay.SourceGen.Text;
 
 #if RELEASE
 var config = DefaultConfig.Instance
@@ -78,6 +72,12 @@ bool hasFlag = e.HasFlag(TestFlagsEnum.Alpha);
 var withFlag = e.WithFlag(TestFlagsEnum.Delta);
 var withoutFlag = e.WithoutFlag(TestFlagsEnum.Beta);
 
+e = default;
+e.AddFlag(TestFlagsEnum.Alpha);
+e.AddFlag(TestFlagsEnum.Delta);
+
+name = e.Name();
+
 
 Debugger.Break();
 
@@ -102,6 +102,15 @@ public enum TestFlagsEnum
     Beta = 1 << 1,
     Gamma = 1 << 2,
     Delta = 1 << 3,
+}
+
+
+public static class TempExtensions
+{
+    // public static void AddFlag(this ref BindingFlags bindingFlags, BindingFlags flag)
+    // {
+    //     bindingFlags |= flag;
+    // }
 }
 
 /*
