@@ -7,6 +7,7 @@ using Jay.SourceGen.Text;
 
 namespace Jay.EnumGen;
 
+/*
 public enum TestEnum
 {
     Default,
@@ -62,11 +63,12 @@ public static partial class TestEnumExtensions
         return iCount;
     }
 
-    public static int FlagCount(this TestFlagsEnum testFlagsEnum)
+    /*public static int FlagCount(this TestFlagsEnum testFlagsEnum)
     {
-        
-    }
+        return EnumExtensions.PopCount((long)testFlagsEnum);
+    }#1#
 }
+*/
 
 
 [Generator]
@@ -99,6 +101,7 @@ public class EnumToCodeGenerator : IIncrementalGenerator
         }
         return name;
     }
+
 
     private static void WriteExtensions(CodeWriter writer, EnumInfo enumInfo,
         Action<CodeWriter> addMethods)
@@ -138,6 +141,24 @@ public class EnumToCodeGenerator : IIncrementalGenerator
             }).WriteLine();
     }
 
+    private static void AddFlagsExtensionsMethods(CodeWriter writer, EnumInfo enumInfo)
+    {
+        var enumVariableName = GetEnumVariableName(enumInfo);
+        writer.WriteLine($"public static int FlagCount(this {enumInfo.Name} {enumVariableName})")
+            .BracketBlock(methodBlock =>
+            {
+                methodBlock.WriteLine($"return EnumExtensions.PopCount((long){enumVariableName});");
+            }).WriteLine();
+    }
+
+    /*
+        public static int FlagCount(this TestFlagsEnum testFlagsEnum)
+    {
+        return EnumExtensions.PopCount((long)testFlagsEnum);
+    }
+     */
+
+
     private static void CreateExtensions(Compilation compilation,
         ImmutableArray<EnumDeclarationSyntax> enumDeclarations,
         SourceProductionContext context)
@@ -157,6 +178,11 @@ public class EnumToCodeGenerator : IIncrementalGenerator
                 WriteExtensions(writer, enumInfo, methodWriter =>
                 {
                     AddNameExtensionMethod(methodWriter, enumInfo);
+
+                    if (enumInfo.HasFlags)
+                    {
+                        AddFlagsExtensionsMethods(methodWriter, enumInfo);
+                    }
                 });
                 var code = writer.ToString();
                 context.AddSource($"{enumInfo.Name}Extensions.g.cs", 
@@ -232,8 +258,8 @@ public class EnumToCodeGenerator : IIncrementalGenerator
         // Add raw code
         context.RegisterPostInitializationOutput(ctx =>
         {
-            // ctx.AddSource("EnumExtensions.g.cs",
-            //     SourceText.From(GenerateMainExtensionsClass(), Encoding.UTF8));
+            ctx.AddSource("EnumExtensions.g.cs",
+                 SourceText.From(Code.EnumExtensions_Code, Encoding.UTF8));
         });
 
         // First cache: all Enum Declarations

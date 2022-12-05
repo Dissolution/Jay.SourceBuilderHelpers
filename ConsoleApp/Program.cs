@@ -71,6 +71,8 @@ var outputPath = result.ResultsDirectoryPath;
 
 
 string name = TestEnum.Beta.Name();
+int flagCount = (TestFlagsEnum.Alpha | TestFlagsEnum.Beta).FlagCount();
+
 
 
 Debugger.Break();
@@ -97,3 +99,31 @@ public enum TestFlagsEnum
     Gamma = 1 << 2,
     Delta = 1 << 3,
 }
+
+/*
+public static class Extensions
+{
+    public static int GetSetBitCount(long lValue)
+    {
+        int count = 0;
+
+        //Loop the value while there are still bits
+        while (lValue != 0)
+        {
+            //Remove the end bit
+            lValue &= (lValue - 1);
+
+            //Increment the count
+            count++;
+        }
+
+        //Return the count
+        return count;
+    }
+
+    public static int FlagCount(TestFlagsEnum testFlagsEnum)
+    {
+        return GetSetBitCount((long)testFlagsEnum);
+    }
+}
+*/
