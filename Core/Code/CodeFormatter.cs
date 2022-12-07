@@ -1,37 +1,26 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using Jay.SourceGen.Reflection;
+using Jay.SourceGen.Text;
 
-namespace Jay.SourceGen.Text;
+namespace Jay.SourceGen.Code;
 
-// public static partial class ToCodeExtensions
-// {
-//     public static string ToCode(this Visibility visibility)
-//     {
-//         return visibility switch
-//         {
-//             Visibility.Private => "private",
-//             Visibility.Protected => "protected",
-//             Visibility.Internal => "internal",
-//             Visibility.Public => "public",
-//             _ => visibility.ToString()
-//         };
-//     }
-// }
+public static class CodeWriterExtensions
+{
+    public static CodeWriter WriteNull<T>(this CodeWriter writer, CodeFormat codeFormat = default)
+    {
+        if (codeFormat == CodeFormat.Declaration)
+            writer.Write('(').WriteType(typeof(T)).Write(')');
+        return writer.Write("null");
+    }
+}
+
 
 public static class CodeFormatter
 {
     /* Notes:
      * Try to avoid using typeof(T), as it won't work with `object`s
      */
-
-    public static CodeWriter WriteNull<T>(this CodeWriter writer, CodeFormat codeFormat = CodeFormat.Reference)
-    {
-        if (codeFormat == CodeFormat.TypeDetails)
-            writer.Write('(').WriteType(typeof(T)).Write(')');
-        return writer.Write("null");
-    }
 
     private static CodeWriter WriteVisibility(this CodeWriter codeWriter, Visibility visibility)
     {
@@ -344,6 +333,20 @@ public static class CodeFormatter
         return writer;
     }
 
+    public static CodeWriter WriteArray(this CodeWriter writer, Array? array, CodeFormat format = default)
+    {
+        if (array is null)
+        {
+            return writer.WriteNull<Array>(format);
+        }
+        var elementType = array.GetType().GetElementType()!;
+        return writer.WriteType(elementType)
+            .Write('[')
+            .Delimited(",", array.Cast<object?>())
+            .Write(']');
+    }
+
+
     public static CodeWriter WriteCode<T>(
         this CodeWriter writer,
         T? value,
@@ -352,51 +355,51 @@ public static class CodeFormatter
         switch (value)
         {
             case null:
-                return WriteNull<T>(writer, codeFormat);
+                return writer.WriteNull<T>(codeFormat);
             case bool boolean:
                 return writer.Write(boolean ? "true" : "false");
             case byte or sbyte or short or ushort:
-                return writer.Write('(').WriteType(value.GetType()).Write(')').Write<T>(value);
+                return writer.Write('(').WriteType(value.GetType()).Write(')').Write(value);
             case int int32:
-                return writer.Write<int>(int32);
+                return writer.Write(int32);
             case uint uint32:
-                return writer.Write<uint>(uint32).Write('U');
+                return writer.Write(uint32).Write('U');
             case long int64:
-                return writer.Write<long>(int64).Write('L');
+                return writer.Write(int64).Write('L');
             case ulong uint64:
-                return writer.Write<ulong>(uint64).Write("UL");
+                return writer.Write(uint64).Write("UL");
             case float f:
-                return writer.Write<float>(f).Write('f');
+                return writer.Write(f).Write('f');
             case double d:
-                return writer.Write<double>(d).Write('d');
+                return writer.Write(d).Write('d');
             case decimal m:
-                return writer.Write<decimal>(m).Write('m');
+                return writer.Write(m).Write('m');
             case TimeSpan timeSpan:
-                return writer.Write('"').Format<TimeSpan>(timeSpan, "c").Write('"');
+                return writer.Write('"').Format(timeSpan, "c").Write('"');
             case DateTime dateTime:
-                return writer.Write('"').Format<DateTime>(dateTime, "O").Write('"');
+                return writer.Write('"').Format(dateTime, "O").Write('"');
             case DateTimeOffset dateTimeOffset:
-                return writer.Write('"').Format<DateTimeOffset>(dateTimeOffset, "O").Write('"');
+                return writer.Write('"').Format(dateTimeOffset, "O").Write('"');
             case Guid guid:
-                return writer.Write('"').Format<Guid>(guid, "D").Write('"');
+                return writer.Write('"').Format(guid, "D").Write('"');
             case char ch:
                 return writer.Write('\'').Write(ch).Write('\'');
             case string str:
                 return writer.Write('"').Write(str).Write('"');
             case Type type:
-                return WriteType(writer, type);
+                return writer.WriteType(type);
             case FieldInfo field:
-                return WriteField(writer, field);
+                return writer.WriteField(field);
             case PropertyInfo property:
-                return WriteProperty(writer, property);
+                return writer.WriteProperty(property);
             case EventInfo eventInfo:
-                return WriteEvent(writer, eventInfo);
+                return writer.WriteEvent(eventInfo);
             case ConstructorInfo constructor:
-                return WriteConstructor(writer, constructor);
+                return writer.WriteConstructor(constructor);
             case MethodInfo method:
-                return WriteMethod(writer, method);
+                return writer.WriteMethod(method);
             case ParameterInfo parameter:
-                return WriteParameter(writer, parameter);
+                return writer.WriteParameter(parameter);
             default:
                 break;
         }
@@ -409,23 +412,28 @@ public static class CodeFormatter
             return writer.Write(name);
         }
 
+        if (valueType.IsArray)
+        {
+            return writer.WriteArray(value as Array);
+        }
+
         // Complex member?
-        if (codeFormat == CodeFormat.TypeDetails)
+        if (codeFormat == CodeFormat.Declaration)
         {
             Debugger.Break();
         }
 
 
-        if (codeFormat == CodeFormat.TypeDetails)
+        if (codeFormat == CodeFormat.Declaration)
             writer.Write('(').WriteType(valueType).Write(')');
-        return writer.Write<T>(value);
+        return writer.Write(value);
     }
 
 
     public static string ToCode<T>(this T? value, CodeFormat codeFormat = CodeFormat.Reference)
     {
         using var writer = new CodeWriter();
-        writer.WriteCode<T>(value, codeFormat);
+        writer.WriteCode(value, codeFormat);
         return writer.ToString();
     }
 }

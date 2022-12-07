@@ -25,15 +25,19 @@ public static class TextHelper
             source.Length);
     }
 
+    private static readonly string[] _newLineSeparator = new string[1] { Environment.NewLine };
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static string[] Split(string? text, string separator, StringSplitOptions options = default)
+    public static string[] SplitLines(string? text, StringSplitOptions options = StringSplitOptions.None)
     {
         if (text is null) return Array.Empty<string>();
-#if NETSTANDARD2_0
+        return text.Split(_newLineSeparator, options);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static string[] Split(string? text, string separator, StringSplitOptions options = StringSplitOptions.None)
+    {
+        if (text is null) return Array.Empty<string>();
         return text.Split(new string[1] { separator }, options);
-#elif NETSTANDARD2_1
-        return text.Split(separator, options);
-#endif
     }
 }

@@ -1,4 +1,7 @@
-﻿using System.ComponentModel;
+﻿using System.Collections;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using Jay.SourceGen.Code;
 
 // Purely for performance reasons
 // ReSharper disable MergeCastWithTypeCheck
@@ -7,6 +10,188 @@ namespace Jay.SourceGen.Text;
 
 public partial class CodeWriter
 {
+    public readonly struct NonFormattableString
+    {
+        //public static implicit operator string(NonFormattableString nfs) => nfs._str;
+        public static implicit operator NonFormattableString(string str) => new NonFormattableString(str);
+        public static implicit operator NonFormattableString(FormattableString _) => throw new InvalidOperationException();
+
+        internal readonly string _str;
+
+        private NonFormattableString(string str)
+        {
+            _str = str;
+        }
+
+        public override string ToString()
+        {
+            return _str;
+        }
+    }
+
+    private static int GetFirstIndex(string str, char ch, int start = 0)
+    {
+        int i;
+        int endIndex = str.Length - 1;
+        while (true)
+        {
+            i = str.IndexOf(ch, start);
+            if (i == -1) return -1;
+            if (i == endIndex || str[i + 1] != ch)
+                return i;
+            start = i;
+        }
+    }
+
+    public CodeWriter Append(NonFormattableString text)
+    {
+        return ParseString(text._str);
+    }
+
+    public CodeWriter Append(FormattableString formattableString)
+    {
+        var argCount = formattableString.ArgumentCount;
+        if (argCount == 0)
+        {
+            return Parse(formattableString.Format);
+        }
+
+        string format = formattableString.Format;
+        var lines = format.Split(new string[1] { Environment.NewLine }, StringSplitOptions.None);
+        foreach (var line in lines)
+        {
+            // Does this line contain an argument hole?
+            int start = 0;
+            int i;
+            while ((i = GetFirstIndex(line, '{', start)) >= 0)
+            {
+                var s = i + 1;
+                var e = GetFirstIndex(line, '}', s);
+                if (e < 0) throw new ArgumentException("Missing argument hole close", nameof(formattableString));
+
+                var pre = line.Substring(start, i - start);
+                _writer.Write(pre);
+
+                var argHole = line.Substring(s, e - s);
+                if (int.TryParse(argHole, out int argIndex))
+                {
+                    if ((uint)argIndex >= argCount)
+                        throw new ArgumentException("Bad argument hole value", nameof(formattableString));
+                    object? arg = formattableString.GetArgument(argIndex);
+                    this.WriteCode<object?>(arg);
+                    i = e;
+                    start = e + 1;
+                    continue;
+                }
+                else
+                {
+                    // Account for format?
+                    throw new InvalidOperationException();
+                }
+            }
+
+            if (start > 0)
+            {
+                var post = line.Substring(start);
+                _writer.Write(post);
+            }
+            else
+            {
+                _writer.Write(line);
+            }
+        }
+
+        return this;
+    }
+
+    private CodeWriter ParseString(string? text)
+    {
+        if (text is null) return this;
+        // Cleanup leading NewLine from `@` usage
+        if (text.StartsWith(_defaultNewLine))
+            text = text[_defaultNewLine.Length..];
+        // Support for `@` and newlines
+        var lines = TextHelper.Split(text, _defaultNewLine);
+        int len = lines.Length;
+        switch (len)
+        {
+            case 0:
+                break;
+            case 1:
+                _writer.Write(lines[0]);
+                break;
+            default:
+            {
+                for (var i = 0; i < len; i++)
+                {
+                    AppendLine();
+                    _writer.Write(lines[i]);
+                }
+                break;
+            }
+        }
+        return this;
+    }
+
+   
+
+
+    public CodeWriter AppendValue<T>(T? value)
+    {
+        switch (value)
+        {
+            case string str:
+                return ParseString(str);
+            case IFormattable:
+                return ParseString(((IFormattable)value).ToString(default, default));
+            case IEnumerable enumerable:
+                return AppendDelimit<object?>(null, enumerable.Cast<object?>());
+            default:
+                return this.WriteCode<T>(value);
+        }
+    }
+
+   
+    public CodeWriter AppendFormat<T>(T? value, string? format)
+    {
+        switch (value)
+        {
+            case string str:
+                return ParseString(str);
+            case IFormattable:
+                return ParseString(((IFormattable)value).ToString(format, default));
+            case IEnumerable enumerable:
+                return AppendDelimit<object?>(format, enumerable.Cast<object?>());
+            default:
+                return this.WriteCode<T>(value);
+        }
+    }
+
+    public CodeWriter AppendLine() => NewLine();
+
+    public CodeWriter AppendDelimit<T>(string? delimiter, IEnumerable<T> values)
+    {
+        if (string.IsNullOrEmpty(delimiter))
+        {
+            foreach (var value in values)
+            {
+                AppendValue<T>(value);
+            }
+        }
+        else
+        {
+            using var e = values.GetEnumerator();
+            if (!e.MoveNext()) return this;
+            AppendValue<T>(e.Current);
+            while (e.MoveNext())
+            {
+                AppendValue(delimiter);
+                AppendValue<T>(e.Current);
+            }
+        }
+        return this;
+    }
+
 
 }
 
@@ -18,29 +203,37 @@ public sealed partial class CodeWriter : IDisposable
 {
     private readonly CharArrayWriter _writer;
 
-    /// <summary>
-    /// The current indent to write after <see cref="NewLine()"/> operations
-    /// </summary>
+    private readonly string _defaultNewLine;
+    private readonly string _defaultIndent;
+    private readonly bool _useJavaStyleBraces;
+
+
     private string _indent;
+    private string _newLine;
 
-    public CodeWriterOptions Options { get; }
 
-    public CodeWriter(CodeWriterOptions? options = null)
+    public CodeWriter()
+        : this(CodeWriterOptions.Default) { }
+
+    public CodeWriter(CodeWriterOptions options)
     {
-        this.Options = options ?? new();
+        _defaultNewLine = options.NewLine;
+        _defaultIndent = options.Indent;
+        _useJavaStyleBraces = options.UseJavaStyleBraces;
+
         _writer = new CharArrayWriter();
         _indent = ""; // start with no indent
+        _newLine = _defaultNewLine;
     }
 
-    private bool IsWhiteSpace()
+    private bool IsOnWhiteSpace()
     {
-        int len = _writer.Length;
-        return len == 0 || char.IsWhiteSpace(_writer[^1]);
+        return _writer.Length == 0 || char.IsWhiteSpace(_writer[^1]);
     }
 
     private bool IsOnNewLine()
     {
-        return _writer.Length == 0 || _writer.EndsWith(Options.NewLine + _indent);
+        return _writer.Length == 0 || _writer.EndsWith(_newLine);
     }
 
     /// <summary>
@@ -53,7 +246,7 @@ public sealed partial class CodeWriter : IDisposable
             return WriteLine("// <auto-generated/> ");
         }
 
-        var commentLines = TextHelper.Split(comment, Options.NewLine);
+        var commentLines = TextHelper.Split(comment, _defaultNewLine);
         return WriteLine("// <auto-generated>")
             .IndentBlock("// ", ic =>
             {
@@ -67,7 +260,7 @@ public sealed partial class CodeWriter : IDisposable
     {
         return Write("#nullable ")
             .Write(enable ? "enable" : "disable")
-            .WriteLine();
+            .AppendLine();
     }
 
     /// <summary>
@@ -114,7 +307,7 @@ public sealed partial class CodeWriter : IDisposable
         /* Most of the time, this is probably a single line.
          * But we do want to watch out for newline characters to turn
          * this into a multi-line comment */
-        var lines = TextHelper.Split(comment, Options.NewLine);
+        var lines = TextHelper.Split(comment, _defaultNewLine);
         switch (lines.Length)
         {
             case 0:
@@ -134,7 +327,7 @@ public sealed partial class CodeWriter : IDisposable
 
     public CodeWriter Comment(string? comment, CommentType commentType)
     {
-        var lines = TextHelper.Split(comment, Options.NewLine);
+        var lines = TextHelper.Split(comment, _defaultNewLine);
         if (commentType == CommentType.SingleLine)
         {
             foreach (var line in lines)
@@ -168,7 +361,7 @@ public sealed partial class CodeWriter : IDisposable
     /// </summary>
     public CodeWriter NewLine()
     {
-        _writer.Write(Options.NewLine);
+        _writer.Write(_defaultNewLine);
         _writer.Write(_indent);
         return this;
     }
@@ -178,7 +371,7 @@ public sealed partial class CodeWriter : IDisposable
     /// </summary>
     public CodeWriter NewLine(int count)
     {
-        var nl = Options.NewLine;
+        var nl = _defaultNewLine;
         for (var i = 0; i < count; i++)
         {
             _writer.Write(nl);
@@ -190,7 +383,7 @@ public sealed partial class CodeWriter : IDisposable
 
     public CodeWriter EnsureWhiteSpace()
     {
-        if (!IsWhiteSpace())
+        if (!IsOnWhiteSpace())
             return Write(' ');
         return this;
     }
@@ -236,10 +429,10 @@ public sealed partial class CodeWriter : IDisposable
     {
         if (text is null) return this;
         // Cleanup leading NewLine from `@` usage
-        if (text.StartsWith(Options.NewLine))
-            text = text[Options.NewLine.Length..];
+        if (text.StartsWith(_defaultNewLine))
+            text = text[_defaultNewLine.Length..];
         // Support for `@` and newlines
-        var lines = TextHelper.Split(text, Options.NewLine);
+        var lines = TextHelper.Split(text, _defaultNewLine);
         if (lines.Length == 0) return this;
         if (lines.Length == 1)
         {
@@ -346,7 +539,7 @@ public sealed partial class CodeWriter : IDisposable
         return this;
     }
 
-    public CodeWriter WriteLine() => NewLine();
+
 
     public CodeWriter WriteLine(string? text)
     {
@@ -362,7 +555,7 @@ public sealed partial class CodeWriter : IDisposable
     {
         DeleteWhiteSpace();
 
-        if (Options.UseJavaStyleBraces)
+        if (_useJavaStyleBraces)
         {
             Write(' ');
         }
@@ -377,7 +570,7 @@ public sealed partial class CodeWriter : IDisposable
             .Write('}');
     }
 
-    public CodeWriter IndentBlock(Action<CodeWriter> indentBlock) => IndentBlock(Options.Indent, indentBlock);
+    public CodeWriter IndentBlock(Action<CodeWriter> indentBlock) => IndentBlock(_defaultIndent, indentBlock);
 
     public CodeWriter IndentBlock(string indent, Action<CodeWriter> indentBlock)
     {
@@ -435,7 +628,7 @@ public sealed partial class CodeWriter : IDisposable
         bool delimitAfterLast = false)
     {
         // Check for pass of NewLine
-        if (delimiter == Options.NewLine)
+        if (delimiter == _defaultNewLine)
             return Delimited<T>(c => c.NewLine(), values, valueBlock, delimitAfterLast);
         return Delimited<T>(c => c.Write(delimiter), values, valueBlock, delimitAfterLast);
     }

@@ -212,12 +212,11 @@ public sealed class CharArrayWriter : IDisposable
 
     public bool StartsWith(string text) => StartsWith(text.AsSpan());
 
-    internal bool StartsWith(ReadOnlySpan<char> text) => Written.StartsWith(text);
+    public bool StartsWith(ReadOnlySpan<char> text) => Written.StartsWith(text);
 
     public bool EndsWith(char ch)
     {
-        return _length > 0 &&
-            _charArray[Capacity-1] == ch;
+        return _length > 0 && _charArray[^1] == ch;
     }
 
     public bool EndsWith(string text) => EndsWith(text.AsSpan());

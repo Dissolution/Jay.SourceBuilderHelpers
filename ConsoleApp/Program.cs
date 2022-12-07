@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Jay.SourceGen.Text;
 
 #if RELEASE
 var config = DefaultConfig.Instance
@@ -63,21 +64,9 @@ var outputPath = result.ResultsDirectoryPath;
 //
 // string code = codeWriter.ToString();
 
+using var writer = new CodeWriter();
 
-string name = TestEnum.Beta.Name();
-
-var e = (TestFlagsEnum.Alpha | TestFlagsEnum.Beta | TestFlagsEnum.Gamma);
-int flagCount = e.FlagCount();
-bool hasFlag = e.HasFlag(TestFlagsEnum.Alpha);
-var withFlag = e.WithFlag(TestFlagsEnum.Delta);
-var withoutFlag = e.WithoutFlag(TestFlagsEnum.Beta);
-
-e = default;
-e.AddFlag(TestFlagsEnum.Alpha);
-e.AddFlag(TestFlagsEnum.Delta);
-
-name = e.Name();
-
+writer.Append($"This is a complex string with arg holes {147} {new char[] { '1', '2' }}");
 
 Debugger.Break();
 
