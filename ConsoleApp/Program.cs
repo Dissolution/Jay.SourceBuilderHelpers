@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
-using Jay.SourceGen.Text;
+using System.Numerics;
+using Jay.SourceGen.Code;
+using Jay.EnumGen;
 
 #if RELEASE
 var config = DefaultConfig.Instance
@@ -64,43 +66,137 @@ var outputPath = result.ResultsDirectoryPath;
 //
 // string code = codeWriter.ToString();
 
+
+
+
 using var writer = new CodeWriter();
 
 writer.Append($"This is a complex string with arg holes {147} {new char[] { '1', '2' }}");
 
 Debugger.Break();
 
-
-#endif
-
-
-public enum TestEnum
+namespace ConsoleApp
 {
-    Default,
-    Alpha,
-    Beta,
-    Gamma,
-    Delta,
-}
+    [ExtendEnum]
+    public readonly partial struct TENUM
+    {
 
-[Flags]
-public enum TestFlagsEnum
-{
-    Default = 0,
-    Alpha = 1 << 0,
-    Beta = 1 << 1,
-    Gamma = 1 << 2,
-    Delta = 1 << 3,
-}
+    }
+
+    public readonly partial struct TENUM :
+        IEqualityOperators<TENUM, TENUM, bool>, IEquatable<TENUM>,
+        IComparisonOperators<TENUM, TENUM, bool>, IComparable<TENUM>,
+        ISpanParsable<TENUM>, IParsable<TENUM>,
+        ISpanFormattable, IFormattable
+    {
+        public static bool operator ==(TENUM left, TENUM right) => left._value == right._value;
+        public static bool operator !=(TENUM left, TENUM right) => left._value != right._value;
+        public static bool operator >(TENUM left, TENUM right) => left._value > right._value;
+        public static bool operator >=(TENUM left, TENUM right) => left._value >= right._value;
+        public static bool operator <(TENUM left, TENUM right) => left._value < right._value;
+        public static bool operator <=(TENUM left, TENUM right) => left._value <= right._value;
+
+        private static readonly TENUM[] _members;
+        private static readonly string[] _membersNames;
+
+        static TENUM()
+        {
+            //GEN:
+            int count = 8;
+
+            _members = new TENUM[0]
+            {
+                // consts
+            };
+            _membersNames = new string[1]
+            {
+                "nameof()",
+            };
+        }
+
+        public static TENUM[] Members => _members;
+        public static string[] MemberNames => _membersNames;
 
 
-public static class TempExtensions
-{
-    // public static void AddFlag(this ref BindingFlags bindingFlags, BindingFlags flag)
-    // {
-    //     bindingFlags |= flag;
-    // }
-}
+        private readonly ulong _value;
+        private readonly string _name;
+
+        private TENUM(ulong value, string name)
+        {
+            _value = value;
+            _name = name;
+        }
+
+
+        public int CompareTo(TENUM other)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Equals(TENUM other)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static TENUM Parse(string s, IFormatProvider? provider)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static bool TryParse(string? s, IFormatProvider? provider, out TENUM result)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static TENUM Parse(ReadOnlySpan<char> s, IFormatProvider? provider)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static bool TryParse(ReadOnlySpan<char> s, IFormatProvider? provider, out TENUM result)
+        {
+            throw new NotImplementedException();
+        }
+
+        public string ToString(string? format, IFormatProvider? formatProvider)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
+    public enum TestEnum
+    {
+        Default,
+        Alpha,
+        Beta,
+        Gamma,
+        Delta,
+    }
+
+    [Flags]
+    public enum TestFlagsEnum
+    {
+        Default = 0,
+        Alpha = 1 << 0,
+        Beta = 1 << 1,
+        Gamma = 1 << 2,
+        Delta = 1 << 3,
+    }
+
+
+    public static class TempExtensions
+    {
+        // public static void AddFlag(this ref BindingFlags bindingFlags, BindingFlags flag)
+        // {
+        //     bindingFlags |= flag;
+        // }
+    }
 
 /*
 public static class Extensions
@@ -129,3 +225,6 @@ public static class Extensions
     }
 }
 */
+}
+
+#endif

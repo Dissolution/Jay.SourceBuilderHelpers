@@ -1,12 +1,11 @@
 ﻿using System.Collections;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using Jay.SourceGen.Code;
+using Jay.SourceGen.Text;
 
 // Purely for performance reasons
 // ReSharper disable MergeCastWithTypeCheck
 
-namespace Jay.SourceGen.Text;
+namespace Jay.SourceGen.Code;
 
 public partial class CodeWriter
 {

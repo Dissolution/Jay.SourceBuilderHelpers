@@ -42,4 +42,12 @@ public static class Extensions
 
         return nameSpace;
     }
+
+    public static string? GetNamespace(this ITypeSymbol typeSymbol)
+    {
+        var ns = typeSymbol.ContainingNamespace;
+        if (ns.IsGlobalNamespace)
+            return null;
+        return ns.ToString();
+    }
 }
