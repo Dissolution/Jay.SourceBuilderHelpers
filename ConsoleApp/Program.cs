@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
+using ConsoleApp;
 using Jay.SourceGen.Code;
 using Jay.EnumGen;
 
@@ -66,12 +67,16 @@ var outputPath = result.ResultsDirectoryPath;
 //
 // string code = codeWriter.ToString();
 
-
-
-
 using var writer = new CodeWriter();
 
-writer.Append($"This is a complex string with arg holes {147} {new char[] { '1', '2' }}");
+//writer.Append($"This is a complex string with arg holes {147} {new char[] { '1', '2' }}");
+
+foreach (var item in ProductCategory.Items)
+{
+    Console.WriteLine(item.Name);
+}
+
+
 
 Debugger.Break();
 

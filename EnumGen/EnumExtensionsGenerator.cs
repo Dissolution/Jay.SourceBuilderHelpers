@@ -96,7 +96,7 @@ public class EnumToCodeGenerator : IIncrementalGenerator
 
     private static string GetEnumVariableName(EnumInfo enumInfo)
     {
-        var name = enumInfo.FQN.WithNaming(Naming.Camel);
+        var name = enumInfo.Name.WithNaming(Naming.Camel);
         if (SyntaxFacts.IsValidIdentifier(name) || name.StartsWith("flag"))
         {
             return "value";
@@ -235,10 +235,6 @@ public class EnumToCodeGenerator : IIncrementalGenerator
                     }
                 });
                 var code = writer.ToString();
-                if (Debugger.IsAttached)
-                {
-                    Debugger.Break();
-                }
                 context.AddSource($"{enumInfo.Name}Extensions.g.cs", 
                     SourceText.From(code, Encoding.UTF8));
             }

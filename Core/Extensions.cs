@@ -50,4 +50,35 @@ public static class Extensions
             return null;
         return ns.ToString();
     }
+
+    public static string? ExtractName(this NameSyntax? name)
+    {
+        return name switch
+        {
+            SimpleNameSyntax ins => ins.Identifier.Text,
+            QualifiedNameSyntax qns => qns.Right.Identifier.Text,
+            _ => null
+        };
+    }
+
+    public static string ToCode(this Accessibility accessibility)
+    {
+        switch (accessibility)
+        {
+            case Accessibility.Private:
+                return "private";
+            case Accessibility.ProtectedOrInternal:
+            case Accessibility.ProtectedAndInternal:
+                return "protected internal";
+            case Accessibility.Protected:
+                return "protected";
+            case Accessibility.Internal:
+                return "internal";
+            case Accessibility.Public:
+                return "public";
+            case Accessibility.NotApplicable:
+            default:
+                return "";
+        }
+    }
 }

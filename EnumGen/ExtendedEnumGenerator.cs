@@ -90,7 +90,7 @@ public class ExtendedEnumGenerator : IIncrementalGenerator
                     IEqualityOperators<{name},{name},bool>, IEquatable<{name}>,
                     IComparison
 
-                    """)
+                """)
             .BracketBlock(structBlock =>
             {
                 structBlock.Parse($$"""
@@ -99,7 +99,7 @@ public class ExtendedEnumGenerator : IIncrementalGenerator
                     public static IReadOnlyList<{{name}}> Members => _members;
 
 
-                    """)
+                    """);
             });
 
 
@@ -114,7 +114,6 @@ public class ExtendedEnumGenerator : IIncrementalGenerator
          return new[] {{ {String.Join(", ", items)} }};
       }}
    }}
-{(ns is null ? null : @"}
 ";
     }
 
@@ -129,34 +128,35 @@ public class ExtendedEnumGenerator : IIncrementalGenerator
         if (types.IsDefaultOrEmpty) return;
 
         // Cleanup?
-        IEnumerable<StructDeclarationSyntax> enums = types.Distinct();
+        IEnumerable<ITypeSymbol> distinctTypes = types.Distinct();
 
-
-
-        var enumInfos = GetEnumInfos(compilation, enums, context.CancellationToken);
-        if (enumInfos.Count > 0)
-        {
-            foreach (var enumInfo in enumInfos)
-            {
-                using var writer = new CodeWriter();
-                WriteExtensions(writer, enumInfo, methodWriter =>
-                {
-                    AddExtensionMethods(methodWriter, enumInfo);
-
-                    if (enumInfo.HasFlags)
-                    {
-                        AddFlagsExtensionsMethods(methodWriter, enumInfo);
-                    }
-                });
-                var code = writer.ToString();
-                if (Debugger.IsAttached)
-                {
-                    Debugger.Break();
-                }
-                context.AddSource($"{enumInfo.Name}Extensions.g.cs", 
-                    SourceText.From(code, Encoding.UTF8));
-            }
-        }
+        throw new NotImplementedException();
+    //
+    //
+    //     var enumInfos = GetEnumInfos(compilation, enums, context.CancellationToken);
+    //     if (enumInfos.Count > 0)
+    //     {
+    //         foreach (var enumInfo in enumInfos)
+    //         {
+    //             using var writer = new CodeWriter();
+    //             WriteExtensions(writer, enumInfo, methodWriter =>
+    //             {
+    //                 AddExtensionMethods(methodWriter, enumInfo);
+    //
+    //                 if (enumInfo.HasFlags)
+    //                 {
+    //                     AddFlagsExtensionsMethods(methodWriter, enumInfo);
+    //                 }
+    //             });
+    //             var code = writer.ToString();
+    //             if (Debugger.IsAttached)
+    //             {
+    //                 Debugger.Break();
+    //             }
+    //             context.AddSource($"{enumInfo.Name}Extensions.g.cs", 
+    //                 SourceText.From(code, Encoding.UTF8));
+    //         }
+    //     }
     }
 
     private static List<EnumInfo> GetEnumInfos(Compilation compilation,
