@@ -20,9 +20,19 @@ namespace Jay.EntityGen
 
             var name = ExtractName(attribute.Name);
 
-            return name is Code.EntityAttribute.BaseName or Code.EntityAttribute.Name;
-        }
+            if (name is not (Code.EntityAttribute.BaseName or Code.EntityAttribute.Name)) return false;
 
+            // "attribute.Parent" is "AttributeListSyntax"
+            // "attribute.Parent.Parent" is a C# fragment the attributes are applied to
+            var fragment = attribute.Parent?.Parent;
+            return fragment switch
+            {
+                StructDeclarationSyntax structDeclaration => structDeclaration.IsPartial(),
+                ClassDeclarationSyntax classDeclaration => classDeclaration.IsPartial(),
+                _ => false
+            };
+        }
+        
         private static string? ExtractName(NameSyntax? name)
         {
             return name switch
@@ -119,7 +129,7 @@ namespace Jay.EntityGen
                     {
                         public override string ToString()
                         {
-                            return "Entity";
+                            return $"Entity-Thing-{Guid.NewGuid()}";
                         }
                     }
                     """);

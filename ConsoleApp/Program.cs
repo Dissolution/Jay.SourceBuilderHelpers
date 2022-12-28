@@ -43,7 +43,7 @@ Debugger.Break();
 namespace ConsoleApp
 {
     [Entity]
-    public class EntityBase
+    public partial class EntityBase
     {
 
     }
