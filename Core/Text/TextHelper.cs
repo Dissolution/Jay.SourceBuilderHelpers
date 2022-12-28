@@ -100,40 +100,6 @@ public static class TextHelper
         }
     }
 
-    public static List<Range> SplitLines(this ReadOnlySpan<char> text)
-    {
-        var ranges = new List<Range>();
-        ReadOnlySpan<char> sep = Environment.NewLine.AsSpan();
-        int start = 0;
-        int index = 0;
-        int len = text.Length;
-        while (index < len)
-        {
-            if (text.StartsWith(sep))
-            {
-                int end = index;
-                if (end - start > 0)
-                {
-                    ranges.Add(new Range(start: start, end: end));
-                }
-
-                start = index + sep.Length;
-                index = start;
-            }
-            else
-            {
-                index++;
-            }
-        }
-
-        if (index - start > 0)
-        {
-            ranges.Add(new Range(start: start, end: index));
-        }
-
-        return ranges;
-    }
-
     public static int FirstIndexOf(this ReadOnlySpan<char> text, char ch, int start = 0)
     {
         int len = text.Length;
@@ -151,7 +117,7 @@ public static class TextHelper
         int fLen = first.Length;
         Span<char> buffer = stackalloc char[fLen + second.Length];
         first.AsSpan().CopyTo(buffer);
-        second.CopyTo(buffer[fLen..]);
+        second.CopyTo(buffer.Slice(fLen));
         return buffer.ToString();
     }
 }

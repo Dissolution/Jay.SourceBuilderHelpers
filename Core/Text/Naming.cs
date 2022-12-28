@@ -149,7 +149,7 @@ public static class NamingExtensions
                     }
                     name[n++] = ch;
                 }
-                return name[..n].ToString();
+                return name.Slice(0, n).ToString();
             }
             case Naming.Field:
             {

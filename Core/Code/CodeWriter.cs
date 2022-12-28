@@ -21,27 +21,27 @@ public delegate void CWA(CodeWriter writer);
 // ReSharper disable once InconsistentNaming
 public delegate void CWA<in T>(CodeWriter writer, T value);
 
-public partial class CodeWriter : IDisposable
+public sealed class CodeWriter : IDisposable
 {
     private const int MIN_CAPACITY = 1024;
     private const int MAX_CAPACITY = Constants.Pool_MaxCapacity;
-    private readonly string _newLine = Environment.NewLine;
-    private const string _defaultIndent = "  "; // two spaces
+    private readonly string _defaultNewLine = Environment.NewLine;
+    private const string _defaultIndent = "    "; // 4 spaces 
 
     private char[] _charArray;
     private int _length;
-    private string _currentIndent = "";
+    private string _newLineIndent;
 
     internal int Capacity
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get { return _charArray.Length; }
+        get => _charArray.Length;
     }
 
     internal Span<char> Available
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get { return _charArray.AsSpan(_length); }
+        get => _charArray.AsSpan(_length);
     }
 
     /// <summary>
@@ -65,7 +65,7 @@ public partial class CodeWriter : IDisposable
     public Span<char> Written
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get { return _charArray.AsSpan(0, _length); }
+        get => _charArray.AsSpan(0, _length);
     }
 
     /// <summary>
@@ -74,12 +74,13 @@ public partial class CodeWriter : IDisposable
     public int Length
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get { return _length; }
+        get => _length;
     }
 
     public CodeWriter(int minCapacity = 1024)
     {
         _charArray = ArrayPool<char>.Shared.Rent(minCapacity.Clamp(MIN_CAPACITY, MAX_CAPACITY));
+        _newLineIndent = _defaultNewLine;
         _length = 0;
     }
 
@@ -208,8 +209,12 @@ public partial class CodeWriter : IDisposable
             // CWA support for neat tricks
             case CWA codeWriterAction:
             {
-                var currentIndent = CurrentLineIndent();
-                return IndentBlock(currentIndent.ToString(), codeWriterAction);
+                var oldIndent = _newLineIndent;
+                var currentIndent = CurrentNewLineIndent();
+                _newLineIndent = currentIndent;
+                codeWriterAction(this);
+                _newLineIndent = oldIndent;
+                return this;
             }
             case string str:
             {
@@ -247,7 +252,7 @@ public partial class CodeWriter : IDisposable
     /// </summary>
     public CodeWriter NewLine()
     {
-        return Write(_newLine).Write(_currentIndent);
+        return Write(_newLineIndent);
     }
 
     /// <summary>
@@ -257,7 +262,7 @@ public partial class CodeWriter : IDisposable
     {
         for (var i = 0; i < count; i++)
         {
-            Write(_newLine).Write(_currentIndent);
+            NewLine();
         }
 
         return this;
@@ -286,7 +291,7 @@ public partial class CodeWriter : IDisposable
         int len;
         while (index < textLen)
         {
-            if (text[index..].StartsWith(newLine))
+            if (text.Slice(index).StartsWith(newLine))
             {
                 len = index - start;
                 if (len > 0)
@@ -337,7 +342,7 @@ public partial class CodeWriter : IDisposable
                 if (i == lineEnd || line[i + 1] == '{')
                 {
                     // Write the pre-slice, skip the escaped char, continue scanning
-                    Write(line[start..(i + 1)]);
+                    Write(line.Slice(start, (i + 1) - start));
                     i += 2;
                     start = i;
                     continue;
@@ -345,7 +350,7 @@ public partial class CodeWriter : IDisposable
                 // This is a hole
 
                 // Write the pre-slice
-                Write(line[start..i]);
+                Write(line.Slice(start, i - start));
                 i++;
                 start = i;
                 // Has to have a finish
@@ -366,14 +371,30 @@ public partial class CodeWriter : IDisposable
                 if (i > lineEnd)
                     throw new ArgumentException();
 
-                // Hole (have to allocate)
-                var argHole = line[start..i].ToString();
-                if (int.TryParse(argHole, out int argIndex))
+                // Hole
+                string argIndexPart;
+                var argWhole = line.Slice(start, i - start);
+                // Format?
+                string? argFormatPart;
+                var fIndex = argWhole.IndexOf(':');
+                if (fIndex >= 0)
+                {
+                    // (have to allocate)
+                    argIndexPart = argWhole.Slice(0, fIndex).ToString();
+                    argFormatPart = argWhole.Slice(fIndex + 1).ToString();
+                }
+                else
+                {
+                    argIndexPart = argWhole.ToString();
+                    argFormatPart = null;
+                }
+                
+                if (int.TryParse(argIndexPart, out int argIndex))
                 {
                     if ((uint)argIndex >= args.Length)
                         throw new ArgumentException("Bad argument hole value", nameof(line));
 
-                    Write<object?>(args[argIndex]);
+                    Write<object?>(args[argIndex], argFormatPart);
 
                     i++;
                     start = i;
@@ -382,6 +403,7 @@ public partial class CodeWriter : IDisposable
                 else
                 {
                     // Account for format?
+                    Debugger.Break();
                     throw new InvalidOperationException();
                 }
             }
@@ -391,7 +413,7 @@ public partial class CodeWriter : IDisposable
                 if (i == lineEnd || line[i + 1] != '}')
                     throw new ArgumentException();
                 // Write the pre-slice, skip the escaped char, continue scanning
-                Write(line[start..(i + 1)]);
+                Write(line.Slice(start, (i + 1) - start));
                 i += 2;
                 start = i;
                 continue;
@@ -410,7 +432,7 @@ public partial class CodeWriter : IDisposable
         }
         else if (start > 0 && start < lineEnd)
         {
-            Write(line[start..]);
+            Write(line.Slice(start));
         }
         else
         {
@@ -424,7 +446,7 @@ public partial class CodeWriter : IDisposable
         int formatLen = format.Length;
         object?[] formatArgs = formattableString.GetArguments();
 
-        ReadOnlySpan<char> newLine = _newLine.AsSpan();
+        ReadOnlySpan<char> newLine = _defaultNewLine.AsSpan();
         int newLineLen = newLine.Length;
 
         int start = 0;
@@ -439,7 +461,7 @@ public partial class CodeWriter : IDisposable
         while (index < formatLen)
         {
             // If we're at a newline, we split here
-            if (format[index..].StartsWith(newLine))
+            if (format.Slice(index).StartsWith(newLine))
             {
                 len = index - start;
                 if (len > 0)
@@ -483,7 +505,7 @@ public partial class CodeWriter : IDisposable
     {
         if (comment is null)
         {
-            return Write("// <auto-generated/>");
+            return WriteLine("// <auto-generated/>");
         }
 
         return this;
@@ -551,8 +573,8 @@ public partial class CodeWriter : IDisposable
         /* Most of the time, this is probably a single line.
          * But we do want to watch out for newline characters to turn
          * this into a multi-line comment */
-        var lines = comment.AsSpan().SplitLines();
-        switch (lines.Count)
+        var lines = TextHelper.SplitLines(comment);
+        switch (lines.Length)
         {
             case 0:
                 // Empty comment
@@ -561,20 +583,20 @@ public partial class CodeWriter : IDisposable
                 // Single line
                 return Write("// ").WriteLine(comment);
             default:
-                return Write("/* ").WriteLine(comment![lines[0]])
-                    .IndentBlock(" * ", ib => ib.EnumerateLines(lines.Skip(1), (cw, line) => cw.WriteLine(comment[line])))
+                return Write("/* ").WriteLine(lines[0])
+                    .IndentBlock(" * ", ib => ib.EnumerateLines(lines.Skip(1), (cw, line) => cw.WriteLine(line)))
                     .WriteLine(" */");
         }
     }
 
     public CodeWriter Comment(string? comment, CommentType commentType)
     {
-        var lines = comment.AsSpan().SplitLines();
+        var lines = TextHelper.SplitLines(comment);
         if (commentType == CommentType.SingleLine)
         {
             foreach (var line in lines)
             {
-                Write("// ").WriteLine(comment![line]);
+                Write("// ").WriteLine(line);
             }
         }
         else if (commentType == CommentType.XML)
@@ -586,8 +608,8 @@ public partial class CodeWriter : IDisposable
         }
         else
         {
-            return Write("/* ").WriteLine(comment![lines[0]])
-                .IndentBlock(" * ", ib => ib.EnumerateLines(lines.Skip(1), (cw, line) => cw.WriteLine(comment[line])))
+            return Write("/* ").WriteLine(lines[0])
+                .IndentBlock(" * ", ib => ib.EnumerateLines(lines.Skip(1), (cw, line) => cw.WriteLine(line)))
                 .WriteLine(" */");
         }
 
@@ -611,18 +633,18 @@ public partial class CodeWriter : IDisposable
 
     public CodeWriter IndentBlock(string indent, CWA indentBlock)
     {
-        if (IsOnNewLine())
+        var oldIndent = _newLineIndent;
+        // We might be on a new line, but not yet indented
+        if (CurrentNewLineIndent() == oldIndent)
         {
             Write(indent);
         }
-
-        var oldIndent = _currentIndent;
         var newIndent = oldIndent + indent;
-        _currentIndent = newIndent;
+        _newLineIndent = newIndent;
         indentBlock(this);
-        _currentIndent = oldIndent;
+        _newLineIndent = oldIndent;
         // Did we do a nl that we need to decrease?
-        if (EndsWith(newIndent))
+        if (Written.EndsWith(newIndent.AsSpan()))
         {
             _length -= newIndent.Length;
             return Write(oldIndent);
@@ -711,73 +733,27 @@ public partial class CodeWriter : IDisposable
 
     #region Information about what has already been written
 
-    internal bool IsOnWhiteSpace()
+    internal string CurrentNewLineIndent()
     {
-        return _length == 0 || char.IsWhiteSpace(_charArray.AsSpan()[^1]);
-    }
-
-    internal bool IsOnNewLine()
-    {
-        return _length == 0 || Written.EndsWith(_newLine.AsSpan());
-    }
-
-    public bool StartsWith(char ch)
-    {
-        return _length > 0 && _charArray[0] == ch;
-    }
-
-    public bool StartsWith(string text)
-    {
-        return Written.StartsWith(text.AsSpan());
-    }
-
-    public bool StartsWith(ReadOnlySpan<char> text)
-    {
-        return Written.StartsWith(text);
-    }
-
-    public bool EndsWith(char ch)
-    {
-        return _length > 0 && _charArray.AsSpan()[^1] == ch;
-    }
-
-    public bool EndsWith(string text)
-    {
-        return Written.EndsWith(text.AsSpan());
-    }
-
-    public bool EndsWith(ReadOnlySpan<char> text)
-    {
-        return Written.EndsWith(text);
-    }
-
-    public ReadOnlySpan<char> CurrentLineIndent()
-    {
-        var lastNewLineIndex = Written.LastIndexOf(_newLine.AsSpan());
+        var lastNewLineIndex = Written.LastIndexOf(_defaultNewLine.AsSpan());
         if (lastNewLineIndex == -1)
-            return default;
-        lastNewLineIndex += _newLine.Length;
-        var indent = Written[lastNewLineIndex..];
-        return indent;
+            return _defaultNewLine;
+        return Written.Slice(lastNewLineIndex).ToString();
     }
 
     #endregion
 
     #region Formatting / Alignment
-    public CodeWriter EnsureWhiteSpace()
-    {
-        if (!IsOnWhiteSpace())
-            return Write(' ');
-        return this;
-    }
-
     /// <summary>
     /// Ensures that the writer is on the beginning of a new line
     /// </summary>
     public CodeWriter EnsureOnNewLine()
     {
-        if (!IsOnNewLine())
+        if (!Written.EndsWith(_newLineIndent.AsSpan()))
+        {
             return NewLine();
+        }
+
         return this;
     }
 

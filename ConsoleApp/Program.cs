@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
-using ConsoleApp;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Jay.SourceGen.Code;
+using Jay.SourceGen.ConsoleApp;
 
 
 #if RELEASE
@@ -16,7 +18,7 @@ var outputPath = result.ResultsDirectoryPath;
 
 //Process.Start(outputPath);
 #else
-
+//
 string name = "BlahBlah";
 
 using var writer = new CodeWriter();
@@ -30,24 +32,38 @@ writer
                 {
                     public override string ToString()
                     {
-                        return "Entity";
+                        return {{147:C}};
                     }
                 }
                 """);
 string code = writer.ToString();
 
-var str = new EntityBase().ToString();
+var entityType = typeof(EntityBase);
+var interfaces = entityType.GetInterfaces();
+var members = entityType.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+var entity = Activator.CreateInstance<EntityBase>();
+
+var otherEntity = new EntityBase { Id = 0, Name = "joe" };
+
+var eq = entity.Equals(otherEntity);
 
 Debugger.Break();
 
-namespace ConsoleApp
+namespace Jay.SourceGen.ConsoleApp
 {
     [Entity]
-    public partial class EntityBase
+    public partial class EntityBase //: IEquatable<EntityBase>
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public string Name { get; set; }
+    }
+
+    public class AnotherClass
     {
 
     }
-
 
 
 
@@ -164,13 +180,6 @@ namespace ConsoleApp
     }
 
 
-    public static class TempExtensions
-    {
-        // public static void AddFlag(this ref BindingFlags bindingFlags, BindingFlags flag)
-        // {
-        //     bindingFlags |= flag;
-        // }
-    }
 
 /*
 public static class Extensions

@@ -6,6 +6,8 @@
         <LangVersion>preview</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <AssemblyName>Jay.SourceGen.$(MSBuildProjectName)</AssemblyName>
+        <RootNamespace>Jay.SourceGen.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -14,6 +16,4 @@
 
         <!--<ProjectReference Include="..\EnumGen\EnumGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />-->
     </ItemGroup>
-
-
 </Project>

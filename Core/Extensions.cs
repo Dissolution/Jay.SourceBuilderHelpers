@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Jay.SourceGen.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -52,6 +53,14 @@ public static class Extensions
         return ns.ToString();
     }
 
+    public static string GetFQN(this ITypeSymbol typeSymbol)
+    {
+        var symbolDisplayFormat = new SymbolDisplayFormat(
+            typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
+
+        return typeSymbol.ToDisplayString(symbolDisplayFormat);
+    }
+
     public static string? ExtractName(this NameSyntax? name)
     {
         return name switch
@@ -91,5 +100,18 @@ public static class Extensions
     public static bool IsPartial(this StructDeclarationSyntax structDeclaration)
     {
         return structDeclaration.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
+    }
+
+    public static string GetVariableName(this ITypeSymbol typeSymbol)
+    {
+        string name = typeSymbol.Name.WithNaming(Naming.Camel);
+        if (SyntaxFacts.IsValidIdentifier(name))
+            return name;
+        return $"@{name}";
+    }
+
+    public static bool CanBeNull(this ITypeSymbol typeSymbol)
+    {
+        return !typeSymbol.IsValueType;
     }
 }
