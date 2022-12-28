@@ -1,4 +1,4 @@
-﻿namespace Jay.SourceGen.Code;
+﻿/*namespace Jay.SourceGen.Code;
 
 public readonly struct CodeWriterOptions
 {
@@ -23,4 +23,4 @@ public readonly struct CodeWriterOptions
         NewLine = newLine;
         UseJavaStyleBraces = useJavaStyleBraces;
     }
-}
+}*/

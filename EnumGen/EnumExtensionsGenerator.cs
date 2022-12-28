@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+﻿/*using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -38,12 +38,12 @@ public static partial class TestEnumExtensions
             TestEnum.Gamma => nameof(TestEnum.Gamma),
             TestEnum.Delta => nameof(TestEnum.Delta),
             _ => testEnum.ToString() ?? "",
-        };*/
+        };#1#
 
     /*public static bool HasFlag(this TestFlagsEnum testFlagsEnum, TestFlagsEnum flag)
     {
         return (testFlagsEnum & flag) != default;
-    }*/
+    }#1#
 
 
 
@@ -68,7 +68,7 @@ public static partial class TestEnumExtensions
     /*public static int FlagCount(this TestFlagsEnum testFlagsEnum)
     {
         return EnumExtensions.PopCount((long)testFlagsEnum);
-    }*/
+    }#1#
 }
 
 
@@ -113,7 +113,7 @@ public class EnumToCodeGenerator : IIncrementalGenerator
             .Namespace(enumInfo.Namespace)
             .AppendLine()
             .Write("public static partial class ")
-            .Write(enumInfo.Name).WriteLine("Extensions")
+            .Write(enumInfo.Name).AppendLine("Extensions")
             .BracketBlock(addMethods);
     }
 
@@ -124,10 +124,10 @@ public class EnumToCodeGenerator : IIncrementalGenerator
             .Write(enumInfo.Name)
             .Write(' ')
             .Write(enumVariableName)
-            .WriteLine(") =>")
+            .AppendLine(") =>")
             .IndentBlock(methodBlock =>
             {
-                methodBlock.Write(enumVariableName).WriteLine(" switch")
+                methodBlock.Write(enumVariableName).AppendLine(" switch")
                     .BracketBlock(switchBlock =>
                     {
                         foreach (string member in enumInfo.Members)
@@ -135,10 +135,10 @@ public class EnumToCodeGenerator : IIncrementalGenerator
                             switchBlock.Write(enumInfo.Name).Write('.').Write(member)
                                 .Write(" => nameof(")
                                 .Write(enumInfo.Name).Write('.').Write(member)
-                                .WriteLine("),");
+                                .AppendLine("),");
                         }
-                        switchBlock.Write("_ => ").Write(enumVariableName).WriteLine(".ToString() ?? \"\",");
-                    }).WriteLine(';');
+                        switchBlock.Write("_ => ").Write(enumVariableName).AppendLine(".ToString() ?? \"\",");
+                    }).AppendLine(';');
             }).AppendLine();
     }
 
@@ -206,7 +206,7 @@ public class EnumToCodeGenerator : IIncrementalGenerator
     {
         return EnumExtensions.PopCount((long)testFlagsEnum);
     }
-     */
+     #1#
 
 
     private static void CreateExtensions(Compilation compilation,
@@ -328,4 +328,4 @@ public class EnumToCodeGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(compilationEnumDeclarations,
             static (ctx, source) => CreateExtensions(source.Compilation, source.EnumDeclarations, ctx));
     }
-}
+}*/

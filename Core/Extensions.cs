@@ -13,10 +13,10 @@ public static class Extensions
         return value < min ? min : value > max ? max : value;
     }
 
-    public static string GetNamespace(this SyntaxNode syntaxNode)
+    public static string? GetNamespace(this SyntaxNode syntaxNode)
     {
         // determine the namespace the class is declared in, if any
-        string nameSpace = string.Empty;
+        string? nameSpace = null;
         SyntaxNode? potentialNamespaceParent = syntaxNode.Parent;
         while (potentialNamespaceParent != null &&
             potentialNamespaceParent is not NamespaceDeclarationSyntax

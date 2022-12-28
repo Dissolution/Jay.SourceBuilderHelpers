@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+﻿/*using System.Collections.Immutable;
 using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Jay.EnumGen.SmartEnums;
@@ -38,4 +38,4 @@ public class DemoAnalyzer : DiagnosticAnalyzer
             context.ReportDiagnostic(error);
         }
     }
-}
+}*/

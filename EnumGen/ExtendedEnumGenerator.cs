@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+﻿/*using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text;
 using Jay.SourceGen;
@@ -340,4 +340,4 @@ public class ExtendedEnumGenerator : IIncrementalGenerator
         var collect = structDeclarations.Collect();
         context.RegisterSourceOutput(collect, GenerateCode);
     }
-}
+}*/

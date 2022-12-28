@@ -1,7 +1,6 @@
-﻿using System.Diagnostics;
+﻿/*using System.Diagnostics;
 using System.Reflection;
 using Jay.SourceGen.Reflection;
-using Jay.SourceGen.Text;
 
 namespace Jay.SourceGen.Code;
 
@@ -20,7 +19,7 @@ public static class CodeFormatter
 {
     /* Notes:
      * Try to avoid using typeof(T), as it won't work with `object`s
-     */
+     #1#
 
     private static CodeWriter WriteVisibility(this CodeWriter codeWriter, Visibility visibility)
     {
@@ -400,6 +399,17 @@ public static class CodeFormatter
                 return writer.WriteMethod(method);
             case ParameterInfo parameter:
                 return writer.WriteParameter(parameter);
+            case CWA cwa:
+            {
+                var curIndent = writer.CurrentLineIndent();
+                return writer.IndentBlock(curIndent, cwa);
+                //cwa(writer);
+                //return writer;
+            }
+            case IEnumerable enumerable:
+            {
+                return writer.AppendDelimit(", ", enumerable.Cast<object?>());
+            }
             default:
                 break;
         }
@@ -417,6 +427,7 @@ public static class CodeFormatter
             return writer.WriteArray(value as Array);
         }
 
+        
         // Complex member?
         if (codeFormat == CodeFormat.Declaration)
         {
@@ -436,4 +447,4 @@ public static class CodeFormatter
         writer.WriteCode(value, codeFormat);
         return writer.ToString();
     }
-}
+}*/

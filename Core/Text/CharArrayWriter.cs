@@ -60,9 +60,9 @@ public sealed class CharArrayWriter : IDisposable
     /// <summary>
     /// Creates a new instance of a <see cref="CharArrayWriter"/>
     /// </summary>
-    public CharArrayWriter()
+    public CharArrayWriter(int minCapacity = 1024)
     {
-        _charArray = ArrayPool<char>.Shared.Rent(1024);
+        _charArray = ArrayPool<char>.Shared.Rent(minCapacity);
         _length = 0;
     }
 

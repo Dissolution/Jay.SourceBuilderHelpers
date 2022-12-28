@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
+﻿/*using System.Collections.Immutable;
 using System.Text;
 
 namespace Jay.EnumGen.SmartEnums;
@@ -150,10 +148,10 @@ using System.Collections.Generic;
         });
         
         var classProvider = context.SyntaxProvider
-            .CreateSyntaxProvider(), GetExtendStructInfo)
+            .CreateSyntaxProvider((node,_) => , GetExtendStructInfo)
             .Collect()
             .SelectMany((myObjects, _) => myObjects.Distinct());
 
         context.RegisterSourceOutput(classProvider, Generate);
     }
-}
+}*/

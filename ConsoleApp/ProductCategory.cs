@@ -1,10 +1,10 @@
-﻿using Jay.EnumGen;
+﻿/*using Jay.EnumGen;
 using Jay.EnumGen.SmartEnums;
 
 namespace ConsoleApp;
 
 [EnumGeneration]
-public class ProductCategory
+public partial class ProductCategory
 {
     public static readonly ProductCategory Fruits = new("Fruits");
     public static readonly ProductCategory Dairy = new("Dairy");
@@ -15,4 +15,4 @@ public class ProductCategory
     {
         Name = name;
     }
-}
+}*/

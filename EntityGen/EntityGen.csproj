@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <LangVersion>11.0</LangVersion>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>true</ImplicitUsings>
+        <AssemblyName>Jay.$(MSBuildProjectName)</AssemblyName>
+        <RootNamespace>Jay.$(MSBuildProjectName)</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="IndexRange" Version="1.0.2" />
+        <PackageReference Include="System.Buffers" Version="4.5.1" />
+        <PackageReference Include="System.Memory" Version="4.5.5" />
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="all" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.4.0" PrivateAssets="all" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.4.0" PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Core\Core.csproj" OutputItemType="Analyzer" PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Pack the generator dll in the analyzers/dotnet/cs path -->
+        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Microsoft.CodeAnalysis" />
+        <Using Include="Microsoft.CodeAnalysis.Text" />
+        <Using Include="Microsoft.CodeAnalysis.CSharp" />
+        <Using Include="Microsoft.CodeAnalysis.CSharp.Syntax" />
+    </ItemGroup>
+</Project>

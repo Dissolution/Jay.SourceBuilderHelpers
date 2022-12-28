@@ -1,8 +1,8 @@
-﻿#define ATTACH
+﻿//#define ATTACH
 
 using System.Diagnostics;
 
-namespace Jay.EnumGen;
+namespace Jay.EntityGen;
 
 [Generator]
 internal class DebugGenerator : IIncrementalGenerator

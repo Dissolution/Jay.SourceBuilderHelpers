@@ -3,18 +3,16 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net7.0</TargetFramework>
-        <LangVersion>latest</LangVersion>
+        <LangVersion>preview</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Core\Core.csproj" />
+        <ProjectReference Include="..\EntityGen\EntityGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
 
-        <ProjectReference Include="..\EnumGen\EnumGen.csproj" 
-                          OutputItemType="Analyzer" 
-                          ReferenceOutputAssembly="false" 
-                          PrivateAssets="all" />
+        <!--<ProjectReference Include="..\EnumGen\EnumGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />-->
     </ItemGroup>
 
 
