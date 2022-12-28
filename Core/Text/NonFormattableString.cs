@@ -5,7 +5,7 @@ public readonly struct NonFormattableString : IEquatable<string>
     //public static implicit operator string(NonFormattableString nfs) => nfs._str;
     public static implicit operator NonFormattableString(string? str) => new NonFormattableString(str);
     public static implicit operator NonFormattableString(FormattableString _) => throw new InvalidOperationException();
-    public static implicit operator NonFormattableString(ReadOnlySpan<char> _) => throw new InvalidOperationException();
+    //public static implicit operator NonFormattableString(ReadOnlySpan<char> _) => throw new InvalidOperationException();
 
     internal readonly string _str;
 

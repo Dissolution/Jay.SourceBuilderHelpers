@@ -42,7 +42,8 @@ internal static class Code
 
                 }
 
-                public KeyAttribute(bool {{NotImportantPropertyArgName}})                {
+                public KeyAttribute(bool {{NotImportantPropertyArgName}})
+                {
                     this.{{NotImportantPropertyName}} = {{NotImportantPropertyArgName}};
                 }
             }

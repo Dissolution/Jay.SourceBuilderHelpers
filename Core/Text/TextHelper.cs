@@ -18,17 +18,17 @@ public static class TextHelper
         Emit.Cpblk();
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static unsafe void CopyBlock(char* source, ref char dest, int charCount)
-    {
-        Emit.Ldarg(nameof(dest));
-        Emit.Ldarg(nameof(source));
-        Emit.Ldarg(nameof(charCount));
-        Emit.Sizeof<char>();
-        Emit.Mul();
-        //Emit.Conv_U4();
-        Emit.Cpblk();
-    }
+    // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    // private static unsafe void CopyBlock(char* source, ref char dest, int charCount)
+    // {
+    //     Emit.Ldarg(nameof(dest));
+    //     Emit.Ldarg(nameof(source));
+    //     Emit.Ldarg(nameof(charCount));
+    //     Emit.Sizeof<char>();
+    //     Emit.Mul();
+    //     //Emit.Conv_U4();
+    //     Emit.Cpblk();
+    // }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void CopyTo(ReadOnlySpan<char> source, Span<char> dest)
@@ -38,16 +38,16 @@ public static class TextHelper
             source.Length);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static unsafe void CopyTo(string source, Span<char> dest)
-    {
-        fixed (char* sourcePtr = source)
-        {
-            CopyBlock(sourcePtr,
-                ref dest.GetPinnableReference(),
-                source.Length);
-        }
-    }
+    // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    // internal static unsafe void CopyTo(string source, Span<char> dest)
+    // {
+    //     fixed (char* sourcePtr = source)
+    //     {
+    //         CopyBlock(sourcePtr,
+    //             ref dest.GetPinnableReference(),
+    //             source.Length);
+    //     }
+    // }
 
     private static readonly string[] _newLineSeparator = new string[1] { Environment.NewLine };
 
