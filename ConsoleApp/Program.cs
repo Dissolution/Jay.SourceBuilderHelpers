@@ -1,11 +1,12 @@
-﻿using System.Diagnostics;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Jay.SourceGen.Code;
 using Jay.SourceGen.ConsoleApp;
-//using Jay.SourceGen.EntityGen;
+using Jay.SourceGen.EntityGen;
 
 #if RELEASE
 var config = DefaultConfig.Instance
@@ -48,22 +49,24 @@ var otherEntity = new EntityBase { Id = 0, Name = "joe" };
 
 var eq = entity.Equals(otherEntity);
 
+int c = entity.CompareTo(otherEntity);
 
-
+string str = otherEntity.ToString();
 
 Debugger.Break();
 
 namespace Jay.SourceGen.ConsoleApp
 {
-    [Entity]
+    [Jay.SourceGen.EntityGen.Entity]
     public partial class EntityBase //: IEquatable<EntityBase>
     {
-        [Key]
+        [Jay.SourceGen.EntityGen.Key]
         public int Id { get; set; }
 
-        //[Key(true)]
+        [Jay.SourceGen.EntityGen.Display]
         public string Name { get; set; }
 
+        [Jay.SourceGen.EntityGen.Display]
         public Guid Guid { get; set; } = Guid.NewGuid();
     }
 

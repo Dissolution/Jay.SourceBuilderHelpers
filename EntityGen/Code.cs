@@ -106,6 +106,8 @@ internal static partial class Code
         public const string Name = BaseName + "Attribute";
 
         public const string Code = $$"""
+            namespace Jay.SourceGen.EntityGen;
+
             [AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
             public sealed class {{Name}} : Attribute
             {
@@ -119,29 +121,44 @@ internal static partial class Code
             """;
     }
 
-    public static class KeyAttribute
+    public static class PropertyAttributes
     {
-        public const string BaseName = "Key";
-        public const string Name = BaseName + "Attribute";
+        public const string KeyName = "KeyAttribute";
+        public const string EqualityName = "EqualityAttribute";
+        public const string ComparisonName = "ComparisonAttribute";
+        public const string DisplayName = "DisplayAttribute";
 
-        public const string NotImportantPropertyName = "OptOut";
-        public const string NotImportantPropertyArgName = "optOut";
+        public const string KeyNameShort = "Key";
+         public const string EqualityNameShort = "Equality";
+        public const string ComparisonNameShort = "Comparison";
+        public const string DisplayNameShort = "Display";
 
+        
         public const string Code = $$"""
+            namespace Jay.SourceGen.EntityGen;
+
             [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
             public sealed class KeyAttribute : Attribute
             {
-                public bool {{NotImportantPropertyName}} { get; set; } = false;
+                public KeyAttribute() { }
+            }
 
-                public KeyAttribute()
-                {
+            [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
+            public sealed class EqualityAttribute : Attribute
+            {
+                public EqualityAttribute() { }
+            }
 
-                }
+            [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
+            public sealed class ComparisonAttribute : Attribute
+            {
+                public ComparisonAttribute() { }
+            }
 
-                public KeyAttribute(bool {{NotImportantPropertyArgName}})
-                {
-                    this.{{NotImportantPropertyName}} = {{NotImportantPropertyArgName}};
-                }
+            [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
+            public sealed class DisplayAttribute : Attribute
+            {
+                public DisplayAttribute() { }
             }
             """;
     }

@@ -8,6 +8,7 @@
         <ImplicitUsings>true</ImplicitUsings>
         <AssemblyName>$(MSBuildProjectName)</AssemblyName>
         <RootNamespace>$(MSBuildProjectName)</RootNamespace>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     </PropertyGroup>
 
     <ItemGroup>

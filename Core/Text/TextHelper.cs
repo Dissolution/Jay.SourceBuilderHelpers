@@ -65,6 +65,41 @@ public static class TextHelper
         return text.Split(_newLineSeparator, options);
     }
 
+     public static List<(int start, int length)> SplitLines(this ReadOnlySpan<char> text)
+    {
+        var ranges = new List<(int,int)>();
+        ReadOnlySpan<char> sep = Environment.NewLine.AsSpan();
+        int start = 0;
+        int index = 0;
+        int len = text.Length;
+        while (index < len)
+        {
+            if (text.StartsWith(sep))
+            {
+                int end = index;
+                if (end - start > 0)
+                {
+                    ranges.Add((start, end-start));
+                }
+
+                start = index + sep.Length;
+                index = start;
+            }
+            else
+            {
+                index++;
+            }
+        }
+
+        if (index - start > 0)
+        {
+            ranges.Add((start, index - start));
+        }
+
+        return ranges;
+    }
+
+
     public delegate void WithLine(ReadOnlySpan<char> line);
 
     public static void PerLine(this ReadOnlySpan<char> text, WithLine perLine)
