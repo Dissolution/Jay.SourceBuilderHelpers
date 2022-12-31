@@ -2,294 +2,411 @@
 using System.Diagnostics;
 using System.Text;
 using Jay.SourceGen.Code;
-using Jay.SourceGen;
 
-namespace Jay.EntityGen
+namespace Jay.SourceGen.EntityGen;
+
+[Generator]
+public class EntityGenerator : IIncrementalGenerator
 {
-    [Generator]
-    public class EntityGenerator : IIncrementalGenerator
+    private static bool CouldBeEntityAttributeAsync(SyntaxNode syntaxNode, CancellationToken _)
     {
-        private static bool CouldBeEntityAttributeAsync(
-            SyntaxNode syntaxNode,
-            CancellationToken token)
+        if (syntaxNode is not AttributeSyntax attribute)
+            return false;
+
+        var name = ExtractName(attribute.Name);
+
+        return name is Code.EntityAttribute.BaseName or
+            Code.EntityAttribute.Name;
+    }
+
+    private static string? ExtractName(NameSyntax? name)
+    {
+        return name switch
         {
-            if (syntaxNode is not AttributeSyntax attribute)
-                return false;
+            SimpleNameSyntax ins => ins.Identifier.Text,
+            QualifiedNameSyntax qns => qns.Right.Identifier.Text,
+            _ => null
+        };
+    }
 
-            var name = ExtractName(attribute.Name);
+    private static TypeDeclarationSyntax? GetTypeDeclarationOrNull(GeneratorSyntaxContext context,
+        CancellationToken _)
+    {
+        var attributeSyntax = (AttributeSyntax)context.Node;
 
-            return name is Code.EntityAttribute.BaseName or
-                Code.EntityAttribute.Name;
+        // "attribute.Parent" is "AttributeListSyntax"
+        Debug.Assert(attributeSyntax.Parent is AttributeListSyntax);
+
+        // "attribute.Parent.Parent" is a C# fragment the attributes are applied to
+        var fragment = attributeSyntax.Parent?.Parent;
+
+        if (fragment is TypeDeclarationSyntax typeDeclarationSyntax)
+        {
+            return typeDeclarationSyntax;
         }
 
-        private static string? ExtractName(NameSyntax? name)
+        // Did not find a type declaration (weird?)
+        return null;
+    }
+
+    internal static bool IsOurAttribute(ISymbol? typeSymbol)
+    {
+        if (typeSymbol is null) return false;
+        var attributes = typeSymbol.GetAttributes();
+        if (attributes.IsEmpty) return false;
+        return attributes.Any(attr =>
         {
-            return name switch
-            {
-                SimpleNameSyntax ins => ins.Identifier.Text,
-                QualifiedNameSyntax qns => qns.Right.Identifier.Text,
-                _ => null
-            };
+            var attrClass = attr.AttributeClass;
+            if (attrClass is null) return false;
+            if (attrClass.Name != Code.EntityAttribute.Name) return false;
+            var ns = attrClass.ContainingNamespace;
+            if (!ns.IsGlobalNamespace) return false;
+            return true;
+        });
+    }
+
+
+    private static void AddCodeSources(
+        SourceProductionContext context,
+        Compilation compilation,
+        ImmutableArray<TypeDeclarationSyntax> typeDeclarations)
+    {
+        if (typeDeclarations.IsDefaultOrEmpty) return;
+
+        foreach (var typeDeclaration in typeDeclarations)
+        {
+            // Code!!!
+            var (fullname, code) = GetCode(context, compilation, typeDeclaration);
+            context.AddSource($"{fullname}.g.cs", code);
         }
+    }
 
-        private static TypeDeclarationSyntax? GetTypeDeclarationOrNull(
-            GeneratorSyntaxContext context,
-            CancellationToken _)
+    internal sealed class EntityInfo
+    {
+        public ITypeSymbol Type { get; }
+        public List<KeyMember> KeyMembers { get; }
+        public bool Nullability { get; }
+
+        public string? NameSpace => Type.GetNamespace();
+        public string Name => Type.Name;
+        public string VarName => Type.GetVariableName();
+
+        public EntityInfo(ITypeSymbol type, List<KeyMember> keyMembers, bool nullability)
         {
-            var attributeSyntax = (AttributeSyntax)context.Node;
-
-            // "attribute.Parent" is "AttributeListSyntax"
-            Debug.Assert(attributeSyntax.Parent is AttributeListSyntax);
-
-            // "attribute.Parent.Parent" is a C# fragment the attributes are applied to
-            var fragment = attributeSyntax.Parent?.Parent;
-
-            if (fragment is TypeDeclarationSyntax typeDeclarationSyntax)
-            {
-                return typeDeclarationSyntax;
-            }
-
-            // Did not find a type declaration (weird?)
-            return null;
+            Type = type;
+            KeyMembers = keyMembers;
+            Nullability = nullability;
         }
+    }
 
-        internal static bool IsOurAttribute(ISymbol? typeSymbol)
+    internal sealed record class KeyMember(string Name, ITypeSymbol Type);
+
+    private static (string FullName, string Code) GenerateSingleKeyCode(EntityInfo entityInfo)
+    {
+        Debug.Assert(entityInfo.KeyMembers.Count == 1);
+        using var writer = new CodeWriter();
+
+        string entityType = entityInfo.Name;
+        string varName = entityInfo.VarName;
+        string memberName = entityInfo.KeyMembers[0].Name;
+        ITypeSymbol memberType = entityInfo.KeyMembers[0].Type;
+
+        bool comparable = memberType.AllInterfaces.Any(i =>
         {
-            if (typeSymbol is null) return false;
-            var attributes = typeSymbol.GetAttributes();
-            if (attributes.IsEmpty) return false;
-            return attributes.Any(attr =>
-            {
-                var attrClass = attr.AttributeClass;
-                if (attrClass is null) return false;
-                if (attrClass.Name != Code.EntityAttribute.Name) return false;
-                var ns = attrClass.ContainingNamespace;
-                if (!ns.IsGlobalNamespace) return false;
-                return true;
-            });
-        }
+            if (!i.GetFQN().StartsWith("System.IComparable")) return false; ;
+            if (!i.IsGenericType) return false;
+            if (i.TypeParameters.Length != 1) return false;
+            return (SymbolEqualityComparer.Default.Equals(i.TypeArguments[0], memberType));
+        });
 
 
-        private static void AddCodeSources(
-            SourceProductionContext context,
-            Compilation compilation,
-            ImmutableArray<TypeDeclarationSyntax> typeDeclarations)
-        {
-            if (typeDeclarations.IsDefaultOrEmpty) return;
+        writer.AutoGeneratedHeader()
+            .Nullable(entityInfo.Nullability)
+            .NewLine()
+            .Using("System.Collections.Generic")
+            .NewLine()
+            .Namespace(entityInfo.NameSpace)
+            .NewLine()
+            .CodeBlock($$"""
+                    partial class {{entityType}} : IEquatable<{{entityType}}>{{(comparable ? $", IComparable<{entityType}>" : "")}}
+                    {
+                        public static bool operator ==({{entityType}} left, {{entityType}} right) => 
+                            EqualityComparer<{{memberType}}>.Default.Equals(left.{{memberName}}, right.{{memberName}});
 
-            foreach (var typeDeclaration in typeDeclarations)
-            {
-                // Code!!!
-                var (fullname, code) = GetCode(context, compilation, typeDeclaration);
-                context.AddSource($"{fullname}.g.cs", code);
-            }
-        }
+                        public static bool operator !=({{entityType}} left, {{entityType}} right) =>
+                            !EqualityComparer<{{memberType}}>.Default.Equals(left.{{memberName}}, right.{{memberName}});
 
-        internal sealed record class KeyMember(string Name, ITypeSymbol Type);
+                        {{(comparable ? new CWA(w => w.CodeBlock($$"""
+                        public static bool operator <({{entityType}} left, {{entityType}} right) => 
+                            Comparer<{{memberType}}>.Default.Compare(left.{{memberName}}, right.{{memberName}}) < 0;
 
-        private static (string FullName, string Code) GenerateCode(
-            ITypeSymbol typeSymbol,
-            List<KeyMember> keyMembers)
-        {
-            string? ns = typeSymbol.GetNamespace();
-            string name = typeSymbol.Name;
-            string varName = typeSymbol.GetVariableName();
+                        public static bool operator <=({{entityType}} left, {{entityType}} right) => 
+                            Comparer<{{memberType}}>.Default.Compare(left.{{memberName}}, right.{{memberName}}) <= 0;
 
-            using var writer = new CodeWriter();
-            writer
-                .AutoGeneratedHeader()
-                .Nullable(true)
-                .NewLine()
-                .Namespace(ns)
-                .NewLine()
-                .WriteLine($"partial class {name} : IEquatable<{name}>")
-                .BracketBlock(classBlock =>
-                {
-                    classBlock.WriteLine($"public bool Equals({name}? {varName})")
-                        .BracketBlock(methodBlock =>
+                        public static bool operator >({{entityType}} left, {{entityType}} right) => 
+                            Comparer<{{memberType}}>.Default.Compare(left.{{memberName}}, right.{{memberName}}) > 0;
+
+                        public static bool operator >=({{entityType}} left, {{entityType}} right) => 
+                            Comparer<{{memberType}}>.Default.Compare(left.{{memberName}}, right.{{memberName}}) >= 0;
+
+                        
+                        public int CompareTo({{entityType}}? {{varName}})
                         {
-                            methodBlock.Enumerate(keyMembers, (cw, keyMember) =>
-                                {
-                                    var memberName = keyMember.Name;
-                                    var memberType = keyMember.Type.GetFQN();
-                                    cw.WriteLine(
-                                        $"if (!EqualityComparer<{memberType}>.Default.Equals(this.{memberName}, {varName}.{memberName})) return false;");
-                                })
-                                .WriteLine("return true;");
-                        })
-                        .NewLines(2)
-                        .CodeBlock($$"""
+                            // Nulls sort first
+                            if ({{varName}} == null) return 1;
+                            return Comparer<{{memberType}}>.Default.Compare(this.{{memberName}}, {{varName}}.{{memberName}});
+                        }
+
+                        """)) : null)}}
+
+                        public bool Equals({{entityType}}? {{varName}})
+                        {
+                            return {{varName}} is not null &&
+                                EqualityComparer<{{memberType}}>.Default.Equals(this.{{memberName}}, {{varName}}.{{memberName}});
+                        }
+
+                        public override bool Equals(object? obj)
+                        {
+                            return obj is {{entityType}} {{varName}} &&
+                                EqualityComparer<{{memberType}}>.Default.Equals(this.{{memberName}}, {{varName}}.{{memberName}});
+                        }
+
+                        public override int GetHashCode()
+                        {
+                            {{(memberType.CanBeNull() ? $"if (this.{memberName} is null) return 0;" : "")}}
+                            return this.{{memberName}}.GetHashCode();
+                        }
+
+                        public override string ToString()
+                        {
+                            return $"{{entityType}}: {{memberName}} = {this.{{memberName}}}";
+                        }
+                    }
+                    """);
+
+        string code = writer.ToString();
+        Debugger.Break();
+        string fullname;
+        if (!string.IsNullOrWhiteSpace(entityInfo.NameSpace))
+        {
+            fullname = $"{entityInfo.NameSpace}.{entityInfo.Name}";
+        }
+        else
+        {
+            fullname = entityInfo.Name;
+        }
+
+        return (fullname, code);
+    }
+
+    private static (string FullName, string Code) GenerateCode(EntityInfo entityInfo)
+    {
+        var keyMembers = entityInfo.KeyMembers;
+        if (keyMembers.Count == 1)
+        {
+            return GenerateSingleKeyCode(entityInfo);
+        }
+
+        string? ns = entityInfo.NameSpace;
+        string name = entityInfo.Name;
+        string varName = entityInfo.VarName;
+
+        using var writer = new CodeWriter();
+        writer
+            .AutoGeneratedHeader()
+            .Nullable(true)
+            .NewLine()
+            .Namespace(ns)
+            .NewLine()
+            .WriteLine($"partial class {name} : IEquatable<{name}>")
+            .BracketBlock(classBlock =>
+            {
+                if (entityInfo.Nullability)
+                {
+                    classBlock.WriteLine(
+                        $"public static bool operator ==({name} left, {name} right) => left.Equals(right);");
+                }
+                else
+                {
+                    classBlock.CodeBlock($$"""
+                            public static bool operator ==({{name}} left, {{name}} right)
+                            {
+                                if (ReferenceEquals(left, right)) return true;
+                                if (left == null || right == null) return false;
+                                return left.Equals(right);
+                            }
+
+                            """);
+                }
+                classBlock.WriteLine($"public bool Equals({name}? {varName})")
+                    .BracketBlock(methodBlock =>
+                    {
+                        methodBlock.Enumerate(keyMembers, (cw, keyMember) =>
+                            {
+                                var memberName = keyMember.Name;
+                                var memberType = keyMember.Type.GetFQN();
+                                cw.WriteLine(
+                                    $"if (!EqualityComparer<{memberType}>.Default.Equals(this.{memberName}, {varName}.{memberName})) return false;");
+                            })
+                            .WriteLine("return true;");
+                    })
+                    .NewLines(2)
+                    .CodeBlock($$"""
                             public override bool Equals(object? obj)
                             {
                                 return obj is {{name}} {{varName}} && Equals({{varName}});
                             }
                             """)
-                        .NewLines(1)
-                        .WriteLine("public override int GetHashCode()")
-                        .BracketBlock(methodBlock =>
-                        {
-                            methodBlock.WriteLine("unchecked")
-                                .BracketBlock(ub =>
-                                {
-                                    ub.WriteLine("int hash = 1009;")
-                                        .Enumerate(keyMembers, static (cw, keyMember) =>
+                    .NewLines(1)
+                    .WriteLine("public override int GetHashCode()")
+                    .BracketBlock(methodBlock =>
+                    {
+                        methodBlock.WriteLine("unchecked")
+                            .BracketBlock(ub =>
+                            {
+                                ub.WriteLine("int hash = 1009;")
+                                    .Enumerate(keyMembers, static (cw, keyMember) =>
+                                    {
+                                        var memberName = keyMember.Name;
+                                        if (keyMember.Type.CanBeNull())
                                         {
-                                            var memberName = keyMember.Name;
-                                            if (keyMember.Type.CanBeNull())
-                                            {
-                                                cw.WriteLine(
-                                                    $"hash = (hash * 9176) + (this.{memberName}?.GetHashCode() ?? 0);");
-                                            }
-                                            else
-                                            {
-                                                cw.WriteLine(
-                                                    $"hash = (hash * 9176) + (this.{memberName}.GetHashCode());");
-                                            }
-                                        })
-                                        .WriteLine("return hash;");
-                                });
-                        })
-                        .NewLines(2)
-                        .WriteLine("public override string ToString()")
-                        .BracketBlock(methodBlock =>
-                        {
-                            methodBlock.Write($"return $\"{name}")
-                                .Enumerate(keyMembers, static (cw, m) => cw.Write($" {m.Name}={{{m.Name}}}"))
-                                .WriteLine("\";");
-                        });
-                });
+                                            cw.WriteLine(
+                                                $"hash = (hash * 9176) + (this.{memberName}?.GetHashCode() ?? 0);");
+                                        }
+                                        else
+                                        {
+                                            cw.WriteLine(
+                                                $"hash = (hash * 9176) + (this.{memberName}.GetHashCode());");
+                                        }
+                                    })
+                                    .WriteLine("return hash;");
+                            });
+                    })
+                    .NewLines(2)
+                    .WriteLine("public override string ToString()")
+                    .BracketBlock(methodBlock =>
+                    {
+                        methodBlock.Write($"return $\"{name}")
+                            .Enumerate(keyMembers, static (cw, m) => cw.Write($" {m.Name}={{{m.Name}}}"))
+                            .WriteLine("\";");
+                    });
+            });
 
 
-            string code = writer.ToString();
-            Debugger.Break();
-            string fullname;
-            if (!string.IsNullOrWhiteSpace(ns))
+        string code = writer.ToString();
+        Debugger.Break();
+        string fullname;
+        if (!string.IsNullOrWhiteSpace(ns))
+        {
+            fullname = $"{ns}.{name}";
+        }
+        else
+        {
+            fullname = name;
+        }
+        return (fullname, code);
+    }
+
+
+    private static (string FullName, string Code) GetCode(SourceProductionContext context,
+        Compilation compilation,
+        TypeDeclarationSyntax typeDeclarationSyntax)
+    {
+        //  Get the semantic representation of the enum syntax
+        SemanticModel semanticModel = compilation.GetSemanticModel(typeDeclarationSyntax.SyntaxTree);
+        INamedTypeSymbol typeSymbol = semanticModel.GetDeclaredSymbol(typeDeclarationSyntax)!;
+        if (typeSymbol is null) throw new InvalidOperationException();
+
+        // Get all the members
+        ImmutableArray<ISymbol> typeMembers = typeSymbol.GetMembers();
+
+        // Get all of them that have the Key attribute
+        var keyMembers = new List<KeyMember>();
+
+        // Scan for instances of our Key attribute
+        foreach (ISymbol member in typeMembers)
+        {
+            ImmutableArray<AttributeData> attributes;
+            ITypeSymbol memberType;
+
+            if (member is IPropertySymbol property)
             {
-                fullname = $"{ns}.{name}";
+                attributes = property.GetAttributes();
+                memberType = property.Type;
+            }
+            else if (member is IFieldSymbol field)
+            {
+                attributes = field.GetAttributes();
+                memberType = field.Type;
             }
             else
             {
-                fullname = name;
+                continue;
             }
-            return (fullname, code);
+
+            if (attributes.Any(attr =>
+                {
+                    var attrClass = attr.AttributeClass;
+                    if (attrClass is null) return false;
+                    string attrName = attrClass.Name;
+                    if (!string.Equals(attrName, Code.KeyAttribute.Name) &&
+                        !string.Equals(attrName, Code.KeyAttribute.BaseName)) return false;
+                       
+                    // Args
+                    var args = attr.GetArgs();
+
+                    //Debugger.Break();
+                    // TODO: Implement optout logic!
+
+                    return true;
+                }))
+            {
+                keyMembers.Add(new(member.Name, memberType));
+            }
         }
 
+        return GenerateCode(new EntityInfo(typeSymbol, keyMembers, true));
+    }
 
-        private static (string FullName, string Code) GetCode(SourceProductionContext context,
-            Compilation compilation,
-            TypeDeclarationSyntax typeDeclarationSyntax)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+#if DEBUG //&& ATTACH
+        if (!Debugger.IsAttached)
         {
-            // Get the semantic representation of our marker attribute 
-            INamedTypeSymbol? enumAttribute = compilation.GetTypeByMetadataName(Code.EntityAttribute.Name);
-
-
-            // Get the semantic representation of the enum syntax
-            SemanticModel semanticModel = compilation.GetSemanticModel(typeDeclarationSyntax.SyntaxTree);
-            INamedTypeSymbol typeSymbol = semanticModel.GetDeclaredSymbol(typeDeclarationSyntax)!;
-            if (typeSymbol is null) throw new InvalidOperationException();
-
-            // Get all the members in the enum
-            ImmutableArray<ISymbol> typeMembers = typeSymbol.GetMembers();
-
-            // Get all of them that have the Key attribute
-            var keyMembers = new List<KeyMember>();
-
-            // Scan for instances of our Key attribute
-            foreach (ISymbol member in typeMembers)
-            {
-                ImmutableArray<AttributeData> attributes;
-                ITypeSymbol memberType;
-
-                if (member is IPropertySymbol property)
-                {
-                    attributes = property.GetAttributes();
-                    memberType = property.Type;
-                }
-                else if (member is IFieldSymbol field)
-                {
-                    attributes = field.GetAttributes();
-                    memberType = field.Type;
-                }
-                else
-                {
-                    continue;
-                }
-
-                if (attributes.Any(attr =>
-                    {
-                        var attrClass = attr.AttributeClass;
-                        if (attrClass is null) return false;
-                        string attrName = attrClass.Name;
-                        if (!string.Equals(attrName, Code.KeyAttribute.Name) &&
-                            !string.Equals(attrName, Code.KeyAttribute.BaseName)) return false;
-
-                        //var attrMembers = attrClass.GetMembers();
-                        //Debugger.Break();
-                        return true;
-                    }))
-                {
-                    keyMembers.Add(new(member.Name, memberType));
-                }
-            }
-
-            return GenerateCode(typeSymbol, keyMembers);
+            Debugger.Launch();
         }
-
-        public void Initialize(IncrementalGeneratorInitializationContext context)
-        {
-#if DEBUG && ATTACH
-            if (!Debugger.IsAttached)
-            {
-                Debugger.Launch();
-            }
 #endif
 
-            // Add our main Attribute
-            context.RegisterPostInitializationOutput(ctx =>
-            {
-                ctx.AddSource($"{Code.EntityAttribute.Name}.g.cs",
-                    SourceText.From(Code.EntityAttribute.Code, Encoding.UTF8));
+        // Add our main Attribute
+        context.RegisterPostInitializationOutput(ctx =>
+        {
+            ctx.AddSource($"{Code.EntityAttribute.Name}.g.cs",
+                SourceText.From(Code.EntityAttribute.Code, Encoding.UTF8));
 
-                ctx.AddSource($"{Code.KeyAttribute.Name}.g.cs",
-                    SourceText.From(Code.KeyAttribute.Code, Encoding.UTF8));
-            });
+            ctx.AddSource($"{Code.KeyAttribute.Name}.g.cs",
+                SourceText.From(Code.KeyAttribute.Code, Encoding.UTF8));
+        });
 
-            // IncrementalValueProvider<ImmutableArray<ITypeSymbol>> enumTypes = context
-            //     .SyntaxProvider
-            //     .CreateSyntaxProvider(CouldBeEntityAttributeAsync, GetEnumTypeOrNull)
-            //     .Where(type => type is not null)
-            //     .Collect()!;
+        // First pass simple filter
+        IncrementalValuesProvider<TypeDeclarationSyntax> enumDeclarations = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                // select all of our attribute
+                predicate: static (s, t) => CouldBeEntityAttributeAsync(s, t),
+                // get the type they are declared upon
+                transform: static (ctx, t) => GetTypeDeclarationOrNull(ctx, t))
+            // Cleanup
+            .Where(static m => m is not null)!;
 
-            // var typesProvider = context
-            //     .SyntaxProvider
-            //     .CreateSyntaxProvider(CouldBeEntityAttributeAsync, GetEnumTypeOrNull)
-            //     .Where(type => type is not null)
-            //     .Combine(context.CompilationProvider)
-            //     .WithComparer(new IdentifierAndCompilationComparer())
-            //
-            // context.RegisterSourceOutput(enumTypes, GenerateCode);
+        // Combine the selected enums with the `Compilation`
+        IncrementalValueProvider<(ImmutableArray<TypeDeclarationSyntax>, Compilation)> combined =
+            enumDeclarations
+                .Collect()
+                .Combine(context.CompilationProvider)
+                .WithComparer(new Filter());
 
-            // First pass simple filter
-            IncrementalValuesProvider<TypeDeclarationSyntax> enumDeclarations = context.SyntaxProvider
-                .CreateSyntaxProvider(
-                    // select all of our attribute
-                    predicate: static (s, t) => CouldBeEntityAttributeAsync(s, t),
-                    // get the type they are declared upon
-                    transform: static (ctx, t) => GetTypeDeclarationOrNull(ctx, t))
-                // Cleanup
-                .Where(static m => m is not null)!;
-
-            // Combine the selected enums with the `Compilation`
-            IncrementalValueProvider<(ImmutableArray<TypeDeclarationSyntax>, Compilation)> combined =
-                enumDeclarations
-                    .Collect()
-                    .Combine(context.CompilationProvider)
-                    .WithComparer(new Filter());
-
-            // Generate the output source
-            context.RegisterSourceOutput(combined,
-                static (spc, src) => AddCodeSources(spc, src.Item2, src.Item1));
-        }
+        // Generate the output source
+        context.RegisterSourceOutput(combined,
+            static (spc, src) => AddCodeSources(spc, src.Item2, src.Item1));
     }
 }
 

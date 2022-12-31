@@ -1,7 +1,10 @@
-﻿using System.Buffers;
+﻿using System;
+using System.Buffers;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Jay.SourceGen.Text;
 
 namespace Jay.SourceGen.Code;
@@ -206,6 +209,10 @@ public sealed class CodeWriter : IDisposable
     {
         switch (value)
         {
+            case null:
+            {
+                return this;
+            }
             // CWA support for neat tricks
             case CWA codeWriterAction:
             {
@@ -388,7 +395,7 @@ public sealed class CodeWriter : IDisposable
                     argIndexPart = argWhole.ToString();
                     argFormatPart = null;
                 }
-                
+
                 if (int.TryParse(argIndexPart, out int argIndex))
                 {
                     if ((uint)argIndex >= args.Length)
@@ -440,6 +447,193 @@ public sealed class CodeWriter : IDisposable
         }
     }
 
+    internal CodeWriter WriteFormatChunk(ReadOnlySpan<char> format, ReadOnlySpan<object?> args)
+    {
+        // Undocumented exclusive limits on the range for Argument Hole Index
+        const int IndexLimit = 1_000_000; // Note:            0 <= ArgIndex < IndexLimit
+
+        // Repeatedly find the next hole and process it.
+        int pos = 0;
+        char ch;
+        while (true)
+        {
+            // Skip until either the end of the input or the first unescaped opening brace, whichever comes first.
+            // Along the way we need to also unescape escaped closing braces.
+            while (true)
+            {
+                // Find the next brace.  If there isn't one, the remainder of the input is text to be appended, and we're done.
+                if ((uint)pos >= (uint)format.Length)
+                {
+                    return this;
+                }
+
+                ReadOnlySpan<char> remainder = format.Slice(pos);
+                int countUntilNextBrace = remainder.IndexOfAny('{', '}');
+                if (countUntilNextBrace < 0)
+                {
+                    return Write(remainder);
+                }
+
+                // Append the text until the brace.
+                Write(remainder.Slice(0, countUntilNextBrace));
+                pos += countUntilNextBrace;
+
+                // Get the brace.
+                // It must be followed by another character, either a copy of itself in the case of being escaped,
+                // or an arbitrary character that's part of the hole in the case of an opening brace.
+                char brace = format[pos];
+                ch = MoveNext(format, ref pos);
+                if (brace == ch)
+                {
+                    Write(ch);
+                    pos++;
+                    continue;
+                }
+
+                // This wasn't an escape, so it must be an opening brace.
+                if (brace != '{')
+                {
+                    ThrowFormatException(format, pos, "Missing opening brace");
+                }
+
+                // Proceed to parse the hole.
+                break;
+            }
+
+            // We're now positioned just after the opening brace of an argument hole, which consists of
+            // an opening brace, an index, and an optional format
+            // preceded by a colon, with arbitrary amounts of spaces throughout.
+            ReadOnlySpan<char> itemFormatSpan = default; // used if itemFormat is null
+
+            // First up is the index parameter, which is of the form:
+            //     at least on digit
+            //     optional any number of spaces
+            // We've already read the first digit into ch.
+            Debug.Assert(format[pos - 1] == '{');
+            Debug.Assert(ch != '{');
+            int index = ch - '0';
+            // Has to be between 0 and 9
+            if ((uint)index >= 10u)
+            {
+                ThrowFormatException(format, pos, "Invalid character in index");
+            }
+
+            // Common case is a single digit index followed by a closing brace.  If it's not a closing brace,
+            // proceed to finish parsing the full hole format.
+            ch = MoveNext(format, ref pos);
+            if (ch != '}')
+            {
+                // Continue consuming optional additional digits.
+                while (IsAsciiDigit(ch) && index < IndexLimit)
+                {
+                    // Shift by power of 10
+                    index = (index * 10) + (ch - '0');
+                    ch = MoveNext(format, ref pos);
+                }
+
+                // Consume optional whitespace.
+                while (ch == ' ')
+                {
+                    ch = MoveNext(format, ref pos);
+                }
+
+                // We do not support alignment
+                if (ch == ',')
+                {
+                    ThrowFormatException(format, pos, "Alignment is not supported");
+                }
+
+                // The next character needs to either be a closing brace for the end of the hole,
+                // or a colon indicating the start of the format.
+                if (ch != '}')
+                {
+                    if (ch != ':')
+                    {
+                        // Unexpected character
+                        ThrowFormatException(format, pos, "Unexpected character");
+                    }
+
+                    // Search for the closing brace; everything in between is the format,
+                    // but opening braces aren't allowed.
+                    int startingPos = pos;
+                    while (true)
+                    {
+                        ch = MoveNext(format, ref pos);
+
+                        if (ch == '}')
+                        {
+                            // Argument hole closed
+                            break;
+                        }
+
+                        if (ch == '{')
+                        {
+                            // Braces inside the argument hole are not supported
+                            ThrowFormatException(format, pos, "Braces inside the argument hole are not supported");
+                        }
+                    }
+
+                    startingPos++;
+                    itemFormatSpan = format.Slice(startingPos, pos - startingPos);
+                }
+            }
+
+            // Construct the output for this arg hole.
+            Debug.Assert(format[pos] == '}');
+            pos++;
+
+            if ((uint)index >= (uint)args.Length)
+            {
+                throw new FormatException($"Invalid Format: Argument '{index}' does not exist");
+            }
+
+            string? itemFormat = null;
+            if (itemFormatSpan.Length > 0)
+                itemFormat = itemFormatSpan.ToString();
+
+            object? arg = args[index];
+
+            // Write this arg
+            Write<object?>(arg, itemFormat);
+
+            // Continue parsing the rest of the format string.
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static char MoveNext(ReadOnlySpan<char> format, ref int pos)
+        {
+            pos++;
+            if ((uint)pos >= (uint)format.Length)
+            {
+                ThrowFormatException(format, pos, "Ran out of room");
+            }
+
+            return format[pos];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static bool IsAsciiDigit(char ch)
+        {
+            return (uint)(ch - '0') <= (uint)('9' - '0');
+        }
+
+        [DoesNotReturn]
+        static void ThrowFormatException(ReadOnlySpan<char> format, int pos, string? details = null)
+        {
+            var message = new StringBuilder()
+                .Append("Invalid Format at position ").Append(pos).AppendLine()
+                .Append(
+                    $"{format.SafeSlice(pos, -16).ToString()}→{format[pos]}←{format.SafeSlice(pos + 1, 16).ToString()}");
+            if (details is not null)
+            {
+                message.AppendLine()
+                    .Append("Details: ").Append(details);
+            }
+
+            throw new FormatException(message.ToString());
+        }
+    }
+
     public CodeWriter CodeBlock(FormattableString formattableString)
     {
         ReadOnlySpan<char> format = formattableString.Format.AsSpan();
@@ -467,9 +661,11 @@ public sealed class CodeWriter : IDisposable
                 if (len > 0)
                 {
                     // Write this chunk, then a new line
-                    WriteArgLine(format.Slice(start, len), formatArgs);
-                    NewLine();
+                    //WriteArgLine(format.Slice(start, len), formatArgs);
+                    WriteFormatChunk(format.Slice(start, len), formatArgs);
                 }
+
+                NewLine();
 
                 // Skip ahead of this whitespace
                 start = index + newLine.Length;
@@ -487,7 +683,8 @@ public sealed class CodeWriter : IDisposable
         if (len > 0)
         {
             // Write this chunk, then a new line
-            WriteArgLine(format.Slice(start, len), formatArgs);
+            //WriteArgLine(format.Slice(start, len), formatArgs);
+            WriteFormatChunk(format.Slice(start, len), formatArgs);
             NewLine();
         }
 
@@ -639,6 +836,7 @@ public sealed class CodeWriter : IDisposable
         {
             Write(indent);
         }
+
         var newIndent = oldIndent + indent;
         _newLineIndent = newIndent;
         indentBlock(this);
@@ -744,6 +942,7 @@ public sealed class CodeWriter : IDisposable
     #endregion
 
     #region Formatting / Alignment
+
     /// <summary>
     /// Ensures that the writer is on the beginning of a new line
     /// </summary>

@@ -2,9 +2,10 @@
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Jay.SourceGen.Code;
 using Jay.SourceGen.ConsoleApp;
-
+//using Jay.SourceGen.EntityGen;
 
 #if RELEASE
 var config = DefaultConfig.Instance
@@ -47,6 +48,9 @@ var otherEntity = new EntityBase { Id = 0, Name = "joe" };
 
 var eq = entity.Equals(otherEntity);
 
+
+
+
 Debugger.Break();
 
 namespace Jay.SourceGen.ConsoleApp
@@ -57,7 +61,10 @@ namespace Jay.SourceGen.ConsoleApp
         [Key]
         public int Id { get; set; }
 
+        //[Key(true)]
         public string Name { get; set; }
+
+        public Guid Guid { get; set; } = Guid.NewGuid();
     }
 
     public class AnotherClass

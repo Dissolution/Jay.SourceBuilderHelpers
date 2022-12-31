@@ -11,8 +11,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Core\Core.csproj" />
-        <ProjectReference Include="..\EntityGen\EntityGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+        <ProjectReference Include="..\Core\Jay.SourceGen.csproj" />
+        <ProjectReference Include="..\EntityGen\Jay.SourceGen.EntityGen.csproj" 
+                          OutputItemType="Analyzer" 
+                          ReferenceOutputAssembly="false" 
+                          PrivateAssets="all" />
 
         <!--<ProjectReference Include="..\EnumGen\EnumGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />-->
     </ItemGroup>

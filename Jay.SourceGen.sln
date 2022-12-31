@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmarks", "Benchmarks\Benchmarks.csproj", "{6AF9BFF7-2167-4660-AC34-F9724E2092A3}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Core", "Core\Core.csproj", "{D1EA6CA7-69DA-4934-BC50-A76660077A1C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jay.SourceGen", "Core\Jay.SourceGen.csproj", "{D1EA6CA7-69DA-4934-BC50-A76660077A1C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleApp", "ConsoleApp\ConsoleApp.csproj", "{90F8F42B-A73B-45BB-8CAD-F3F5A0095668}"
 EndProject
@@ -18,7 +18,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnumGen", "EnumGen\EnumGen.csproj", "{6F442400-2488-41AD-9517-4A4A9AF369A4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EntityGen", "EntityGen\EntityGen.csproj", "{C4F493BC-B4EB-423D-89EB-0AFC2A624C02}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jay.SourceGen.EntityGen", "EntityGen\Jay.SourceGen.EntityGen.csproj", "{C4F493BC-B4EB-423D-89EB-0AFC2A624C02}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,8 +1,6 @@
 ﻿//#define ATTACH
 
-using System.Diagnostics;
-
-namespace Jay.EntityGen;
+namespace Jay.SourceGen.EntityGen;
 
 [Generator]
 internal class DebugGenerator : IIncrementalGenerator
