@@ -1,16 +1,40 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis;
-
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Text;
+﻿using System.Collections.Immutable;
 
 namespace Jay.SourceGen;
 
 public static class Hasher
 {
-    public static int GetHashCode<T>(IReadOnlyList<T> values)
+     public static int GenerateHashCode<T>(ImmutableArray<T> array)
+    {
+        unchecked
+        {
+            int hash = 1009;
+            int count = array.Length;
+            for (var i = 0; i < count; i++)
+            {
+                var itemHash = (array[i]?.GetHashCode() ?? 0);
+                hash = (hash * 9176) + itemHash;
+            }
+            return hash;
+        }
+    }
+
+    public static int GenerateHashCode<T>(ImmutableArray<T> array, Func<T?, int> getItemHash)
+    {
+        unchecked
+        {
+            int hash = 1009;
+            int count = array.Length;
+            for (var i = 0; i < count; i++)
+            {
+                var itemHash = getItemHash(array[i]);
+                hash = (hash * 9176) + itemHash;
+            }
+            return hash;
+        }
+    }
+
+    public static int GenerateHashCode<T>(IReadOnlyList<T> values)
     {
         unchecked
         {
@@ -25,7 +49,7 @@ public static class Hasher
         }
     }
 
-    public static int GetHashCode<T>(IEnumerable<T> values)
+    public static int GenerateHashCode<T>(IEnumerable<T> values)
     {
         unchecked
         {

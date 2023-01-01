@@ -8,14 +8,13 @@
         <Nullable>enable</Nullable>
         <AssemblyName>Jay.SourceGen.$(MSBuildProjectName)</AssemblyName>
         <RootNamespace>Jay.SourceGen.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+        <Configurations>Debug;Release;Attach</Configurations>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Core\Jay.SourceGen.csproj" />
-        <ProjectReference Include="..\EntityGen\Jay.SourceGen.EntityGen.csproj" 
-                          OutputItemType="Analyzer" 
-                          ReferenceOutputAssembly="false" 
-                          PrivateAssets="all" />
+        <ProjectReference Include="..\EntityGen\Jay.EntityGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+        <ProjectReference Include="..\Jay.EntityGen.Attributes\Jay.EntityGen.Attributes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
 
         <!--<ProjectReference Include="..\EnumGen\EnumGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />-->
     </ItemGroup>

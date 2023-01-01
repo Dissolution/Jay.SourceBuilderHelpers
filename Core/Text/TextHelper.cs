@@ -1,5 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+
 using static InlineIL.IL;
 
 namespace Jay.SourceGen.Text;

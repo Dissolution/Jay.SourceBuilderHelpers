@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace Jay.SourceGen.Reflection;
+﻿namespace Jay.SourceGen.Reflection;
 
 [Flags]
 public enum Visibility

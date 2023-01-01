@@ -1,12 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
-using Jay.SourceGen.Code;
 using Jay.SourceGen.ConsoleApp;
-using Jay.SourceGen.EntityGen;
+using Jay.EntityGen.Attributes;
+using Jay.SourceGen;
 
 #if RELEASE
 var config = DefaultConfig.Instance
@@ -44,29 +41,36 @@ var entityType = typeof(EntityBase);
 var interfaces = entityType.GetInterfaces();
 var members = entityType.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
 var entity = Activator.CreateInstance<EntityBase>();
+entity.Name = "First";
 
 var otherEntity = new EntityBase { Id = 0, Name = "joe" };
 
 var eq = entity.Equals(otherEntity);
+var eq2 = entity == otherEntity;
+
 
 int c = entity.CompareTo(otherEntity);
 
 string str = otherEntity.ToString();
 
+//string strD = otherEntity.ToString("d");
+
+
+
 Debugger.Break();
 
 namespace Jay.SourceGen.ConsoleApp
 {
-    [Jay.SourceGen.EntityGen.Entity]
+    [Entity]
     public partial class EntityBase //: IEquatable<EntityBase>
     {
-        [Jay.SourceGen.EntityGen.Key]
+        [Key]
         public int Id { get; set; }
 
-        [Jay.SourceGen.EntityGen.Display]
+        [Key(KeyKind.Display)]
         public string Name { get; set; }
 
-        [Jay.SourceGen.EntityGen.Display]
+        [Key(KeyKind.Display)]
         public Guid Guid { get; set; } = Guid.NewGuid();
     }
 

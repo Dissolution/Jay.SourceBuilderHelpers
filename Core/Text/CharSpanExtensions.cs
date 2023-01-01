@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Jay.SourceGen.Text;
+﻿namespace Jay.SourceGen.Text;
 
 internal static class CharSpanExtensions
 {

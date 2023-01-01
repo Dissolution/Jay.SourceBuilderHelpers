@@ -9,6 +9,7 @@
         <AssemblyName>$(MSBuildProjectName)</AssemblyName>
         <RootNamespace>$(MSBuildProjectName)</RootNamespace>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <Configurations>Debug;Release;Attach</Configurations>
     </PropertyGroup>
 
     <ItemGroup>
@@ -21,11 +22,16 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Core\Jay.SourceGen.csproj" OutputItemType="Analyzer" PrivateAssets="all" />
+        <ProjectReference Include="..\Jay.EntityGen.Attributes\Jay.EntityGen.Attributes.csproj" PrivateAssets="all" />
     </ItemGroup>
 
     <ItemGroup>
         <!-- Pack the generator dll in the analyzers/dotnet/cs path -->
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+         <!-- Pack the attributes dll in the analyzers/dotnet/cs path -->
+        <None Include="$(OutputPath)\Jay.EntityGen.Attributes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+        <!-- Pack the attributes dll in the lib\netstandard2.0 path -->
+        <None Include="$(OutputPath)\Jay.EntityGen.Attributes.dll" Pack="true" PackagePath="lib\netstandard2.0" Visible="true" />  
     </ItemGroup>
 
     <ItemGroup>

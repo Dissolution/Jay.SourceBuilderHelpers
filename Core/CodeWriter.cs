@@ -1,13 +1,16 @@
-﻿using System;
-using System.Buffers;
+﻿using System.Buffers;
+using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
+
 using Jay.SourceGen.Text;
 
-namespace Jay.SourceGen.Code;
+using Microsoft.CodeAnalysis;
+
+namespace Jay.SourceGen;
 
 /// <summary>
 /// <see cref="CodeWriter"/> <see cref="Action"/>
@@ -23,6 +26,8 @@ public delegate void CWA(CodeWriter writer);
 /// <param name="value">A stateful <typeparamref name="T"/> value</param>
 // ReSharper disable once InconsistentNaming
 public delegate void CWA<in T>(CodeWriter writer, T value);
+
+public delegate void CWAI<in T>(CodeWriter writer, T value, int index);
 
 public sealed class CodeWriter : IDisposable
 {
@@ -235,15 +240,24 @@ public sealed class CodeWriter : IDisposable
             {
                 if (!string.IsNullOrEmpty(format))
                 {
-                    return EnumerateDelimitWrite(format!, enumerable.Cast<object?>());
+                    return Delimit(format!, enumerable.Cast<object?>(), static (w, v) => w.Write(v));
                 }
                 else
                 {
                     return EnumerateWrite(enumerable.Cast<object?>());
                 }
             }
+            case ITypeSymbol typeSymbol:
+            {
+                var str = typeSymbol.ToString();
+                return Write(str);
+            }
             default:
             {
+                var tType = typeof(T);
+                var valueType= value?.GetType();
+            
+                Debugger.Break();
                 return Write(value?.ToString());
             }
         }
@@ -251,7 +265,7 @@ public sealed class CodeWriter : IDisposable
 
     public CodeWriter WriteLine<T>(T? value, string? format = null)
     {
-        return Write<T>(value, format).NewLine();
+        return Write(value, format).NewLine();
     }
 
     /// <summary>
@@ -411,7 +425,7 @@ public sealed class CodeWriter : IDisposable
                 while (IsAsciiDigit(ch) && index < IndexLimit)
                 {
                     // Shift by power of 10
-                    index = (index * 10) + (ch - '0');
+                    index = index * 10 + (ch - '0');
                     ch = MoveNext(format, ref pos);
                 }
 
@@ -498,7 +512,7 @@ public sealed class CodeWriter : IDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static bool IsAsciiDigit(char ch)
         {
-            return (uint)(ch - '0') <= (uint)('9' - '0');
+            return (uint)(ch - '0') <= '9' - '0';
         }
 
         [DoesNotReturn]
@@ -657,16 +671,16 @@ public sealed class CodeWriter : IDisposable
                 // Single line
                 return Write("// ").WriteLine(comment);
             default:
+            {
+                using var e = lines.GetEnumerator();
+                e.MoveNext();
+                Write("/* ").WriteLine(comment.AsSpan(e.Current.start, e.Current.length));
+                while (e.MoveNext())
                 {
-                    using var e = lines.GetEnumerator();
-                    e.MoveNext();
-                    Write("/* ").WriteLine(comment.AsSpan(e.Current.start, e.Current.length));
-                    while(e.MoveNext())
-                    {
-                        Write(" * ").WriteLine(comment.AsSpan(e.Current.start, e.Current.length));
-                    }
-                    return WriteLine(" */");
-                }                
+                    Write(" * ").WriteLine(comment.AsSpan(e.Current.start, e.Current.length));
+                }
+                return WriteLine(" */");
+            }
         }
     }
 
@@ -692,7 +706,7 @@ public sealed class CodeWriter : IDisposable
             using var e = lines.GetEnumerator();
             e.MoveNext();
             Write("/* ").WriteLine(comment.AsSpan(e.Current.start, e.Current.length));
-            while(e.MoveNext())
+            while (e.MoveNext())
             {
                 Write(" * ").WriteLine(comment.AsSpan(e.Current.start, e.Current.length));
             }
@@ -743,6 +757,28 @@ public sealed class CodeWriter : IDisposable
 
 
     #region Enumerate
+    public CodeWriter Enumerate<T>(IEnumerable<T> values, CWAI<T> perValue)
+    {
+        if (values is IList<T> list)
+        {
+            for (var i = 0; i < list.Count; i++)
+            {
+                perValue(this, list[i], i);
+            }
+        }
+        else
+        {
+            using var e = values.GetEnumerator();
+            if (!e.MoveNext()) return this;
+            int i = 0;
+            perValue(this, e.Current, i);
+            while (e.MoveNext())
+            {
+                perValue(this, e.Current, ++i);
+            }
+        }
+        return this;
+    }
 
     public CodeWriter Enumerate<T>(IEnumerable<T> values, CWA<T> perValue)
     {
@@ -750,68 +786,118 @@ public sealed class CodeWriter : IDisposable
         {
             perValue(this, value);
         }
-
         return this;
     }
 
-    public CodeWriter EnumerateWrite<T>(IEnumerable<T> enumerable)
+    public CodeWriter EnumerateWrite<T>(IEnumerable<T> enumerable) => Enumerate(enumerable, static (cw, v) => cw.Write(v));
+
+    public CodeWriter EnumerateWriteLines<T>(IEnumerable<T> enumerable) => Enumerate(enumerable, static (cw, v) => cw.WriteLine(v));
+
+    public CodeWriter EnumerateLines<T>(IEnumerable<T> enumerable, CWA<T> perValue) => Enumerate(enumerable, (cw, v) =>
     {
-        foreach (var item in enumerable)
+        perValue(cw, v);
+        NewLine();
+    });
+
+
+    public CodeWriter Delimit<T>(CWA delimit, IEnumerable<T> values, CWAI<T> perValue)
+    {
+        if (values is IList<T> list)
         {
-            Write<T>(item);
+            var count = list.Count;
+            if (count == 0) return this;
+            perValue(this, list[0], 0);
+            for (var i = 1; i < count; i++)
+            {
+                delimit(this);
+                perValue(this, list[i], i);
+            }
         }
-
-        return this;
-    }
-
-    public CodeWriter EnumerateWriteLines<T>(IEnumerable<T> enumerable)
-    {
-        foreach (var item in enumerable)
+        else
         {
-            WriteLine<T>(item);
+            using var e = values.GetEnumerator();
+            if (!e.MoveNext()) return this;
+            int i = 0;
+            perValue(this, e.Current, i);
+            while (e.MoveNext())
+            {
+                delimit(this);
+                perValue(this, e.Current, ++i);
+            }
         }
-
         return this;
     }
 
-    public CodeWriter EnumerateLines<T>(IEnumerable<T> enumerable, CWA<T> perValue)
+    public CodeWriter Delimit<T>(CWA delimit, IEnumerable<T> values, CWA<T> perValue)
     {
-        foreach (var item in enumerable)
+        if (values is IList<T> list)
         {
-            perValue(this, item);
-            NewLine();
+            var count = list.Count;
+            if (count == 0) return this;
+            perValue(this, list[0]);
+            for (var i = 1; i < count; i++)
+            {
+                delimit(this);
+                perValue(this, list[i]);
+            }
         }
-
-        return this;
-    }
-
-
-    public CodeWriter EnumerateDelimitWrite<T>(string delimiter, IEnumerable<T> values)
-    {
-        using var e = values.GetEnumerator();
-        if (!e.MoveNext()) return this;
-        Write<T>(e.Current);
-        while (e.MoveNext())
+        else
         {
-            Write(delimiter);
-            Write<T>(e.Current);
-        }
-
-        return this;
-    }
-
-    public CodeWriter EnumerateDelimit<T>(string delimiter, IEnumerable<T> values, CWA<T> perValue)
-    {
-        using var e = values.GetEnumerator();
-        if (!e.MoveNext()) return this;
-        perValue(this, e.Current);
-        while (e.MoveNext())
-        {
-            Write(delimiter);
+            using var e = values.GetEnumerator();
+            if (!e.MoveNext()) return this;
             perValue(this, e.Current);
+            while (e.MoveNext())
+            {
+                delimit(this);
+                perValue(this, e.Current);
+            }
         }
-
         return this;
+    }
+
+
+    public CodeWriter Delimit<T>(string delimiter, IEnumerable<T> values, CWA<T> perValue)
+    {
+        // Check delimiter for special cases
+        if (delimiter == _defaultNewLine)
+        {
+            return Delimit(w => w.NewLine(), values, perValue);
+        }
+        else if (delimiter.Contains(_defaultNewLine))
+        {
+            return Delimit(w => w.CodeBlock(delimiter), values, perValue);
+        }
+        else
+        {
+            return Delimit(w => w.Write(delimiter), values, perValue);
+        }
+    }
+
+    public CodeWriter Delimit<T>(string delimiter, IEnumerable<T> values, CWAI<T> perValue)
+    {
+        // Check delimiter for special cases
+        if (delimiter == _defaultNewLine)
+        {
+            return Delimit(w => w.NewLine(), values, perValue);
+        }
+        else if (delimiter.Contains(_defaultNewLine))
+        {
+            return Delimit(w => w.CodeBlock(delimiter), values, perValue);
+        }
+        else
+        {
+            return Delimit(w => w.Write(delimiter), values, perValue);
+        }
+    }
+
+    public CodeWriter DelimitLines<T>(IEnumerable<T> values, CWA<T> perValue)
+    {
+        return Delimit(w => w.NewLine(), values, perValue);
+    }
+
+    public CodeWriter DelimitLines<T>(IEnumerable<T> values, CWAI<T> perValue)
+    {
+        return Delimit(w => w.NewLine(), values, perValue);
     }
 
     #endregion

@@ -1,16 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Text;
+
 using Jay.SourceGen.Text;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Jay.SourceGen;
 
-public static class Extensions
+public static partial class Extensions
 {
     public static int Clamp(this int value, int min, int max)
     {
@@ -160,5 +159,23 @@ public static class Extensions
         }
 
         return args;
+    }
+
+    public static bool HasInterface<TInterface>(this ITypeSymbol type)
+        where TInterface : class
+    {
+        var interfaceType = typeof(TInterface);
+        if (!interfaceType.IsInterface)
+            throw new ArgumentException("The generic type must be an Interface type", nameof(TInterface));
+        var interfaceFQN = interfaceType.FullName;
+
+        return type.AllInterfaces
+            .Any(ti => ti.GetFQN() == interfaceFQN);
+    }
+
+    public static void AddSource(this SourceProductionContext context,
+        CodeSource codeSource)
+    {
+        context.AddSource(codeSource.HintName, codeSource.Text);
     }
 }

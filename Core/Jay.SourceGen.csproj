@@ -9,6 +9,7 @@
         <AssemblyName>Jay.SourceGen</AssemblyName>
         <RootNamespace>Jay.SourceGen</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Configurations>Debug;Release;Attach</Configurations>
     </PropertyGroup>
 
     <ItemGroup>

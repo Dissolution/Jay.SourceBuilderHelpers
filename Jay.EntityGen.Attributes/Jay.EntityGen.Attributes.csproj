@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+      <LangVersion>latest</LangVersion>
+      <Configurations>Debug;Release;Attach</Configurations>
+  </PropertyGroup>
+    
+    <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+    <_Parameter1>Jay.EntityGen</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

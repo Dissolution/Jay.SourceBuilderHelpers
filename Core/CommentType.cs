@@ -1,4 +1,4 @@
-﻿/*namespace Jay.SourceGen.Code;
+﻿namespace Jay.SourceGen;
 
 public enum CommentType
 {
@@ -12,12 +12,12 @@ public enum CommentType
     SingleLine,
 
     /// <summary>
-    /// <c>/* comment #1#</c><br/>
+    /// <c>/* comment */</c><br/>
     /// <i>or</i><br/>
     /// <c>
     /// /* comment 1<br/>
     ///  * comment 2<br/>
-    /// #1#<br/>
+    /// */<br/>
     /// </c>
     /// </summary>
     MultiLine,
@@ -30,4 +30,4 @@ public enum CommentType
     /// </c>
     /// </summary>
     XML,
-}*/
+}
