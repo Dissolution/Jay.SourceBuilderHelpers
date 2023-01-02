@@ -1,8 +1,9 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics;
 using Jay.EntityGen.Attributes;
-using Jay.SourceGen;
 using Jay.EntityGen.CodeGen;
+using Jay.SourceGen.Extensions;
+using Jay.SourceGen.Code;
 
 #nullable enable
 

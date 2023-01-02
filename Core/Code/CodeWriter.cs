@@ -1,16 +1,14 @@
-﻿using System.Buffers;
-using System.Collections;
+﻿using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
-
+using Jay.SourceGen.Extensions;
 using Jay.SourceGen.Text;
-
 using Microsoft.CodeAnalysis;
 
-namespace Jay.SourceGen;
+namespace Jay.SourceGen.Code;
 
 /// <summary>
 /// <see cref="CodeWriter"/> <see cref="Action"/>
@@ -29,132 +27,26 @@ public delegate void CWA<in T>(CodeWriter writer, T value);
 
 public delegate void CWAI<in T>(CodeWriter writer, T value, int index);
 
+
 public sealed class CodeWriter : IDisposable
 {
-    private const int MIN_CAPACITY = 1024;
-    private const int MAX_CAPACITY = Constants.Pool_MaxCapacity;
     private readonly string _defaultNewLine = Environment.NewLine;
     private const string _defaultIndent = "    "; // 4 spaces 
 
-    private char[] _charArray;
-    private int _length;
+    private readonly TextBuilder _writer;
     private string _newLineIndent;
 
-    internal int Capacity
+    public CodeWriter()
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _charArray.Length;
-    }
-
-    internal Span<char> Available
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _charArray.AsSpan(_length);
-    }
-
-    /// <summary>
-    /// Gets a <c>ref</c> to the <see cref="char"/> at the given <paramref name="index"/>
-    /// </summary>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="index"/> is less than 0 or greater than <see cref="Length"/></exception>
-    public ref char this[int index]
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if ((uint)index < _length)
-            {
-                return ref _charArray[index];
-            }
-
-            throw new ArgumentOutOfRangeException(nameof(index), index, $"Index must be between 0 and {_length - 1}");
-        }
-    }
-
-    public Span<char> Written
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _charArray.AsSpan(0, _length);
-    }
-
-    /// <summary>
-    /// Gets the current number of <see cref="char"/>acters written
-    /// </summary>
-    public int Length
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _length;
-    }
-
-    public CodeWriter(int minCapacity = 1024)
-    {
-        _charArray = ArrayPool<char>.Shared.Rent(minCapacity.Clamp(MIN_CAPACITY, MAX_CAPACITY));
+        _writer = new TextBuilder();
         _newLineIndent = _defaultNewLine;
-        _length = 0;
     }
-
-    #region Growth
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void Grow(int additionalChars)
-    {
-        int newCapacity = ((Capacity + additionalChars) * 2).Clamp(MIN_CAPACITY, MAX_CAPACITY);
-        var newArray = ArrayPool<char>.Shared.Rent(newCapacity);
-        TextHelper.CopyTo(Written, newArray);
-        ArrayPool<char>.Shared.Return(_charArray);
-        _charArray = newArray;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void GrowWrite(char ch)
-    {
-        int i = _length;
-        Debug.Assert(i + 1 >= Capacity);
-        Grow(1);
-        _charArray[i] = ch;
-        _length = i + 1;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void GrowWrite(string text)
-    {
-        Debug.Assert(text is not null);
-        int i = _length;
-        int len = text!.Length;
-        Debug.Assert(i + len > Capacity);
-        Grow(len);
-        TextHelper.CopyTo(text.AsSpan(), Available);
-        _length = i + len;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void GrowWrite(ReadOnlySpan<char> text)
-    {
-        int i = _length;
-        int len = text.Length;
-        Debug.Assert(i + len > Capacity);
-        Grow(len);
-        TextHelper.CopyTo(text, Available);
-        _length = i + len;
-    }
-
-    #endregion
 
     #region Write / WriteLine / NewLine
 
     public CodeWriter Write(char ch)
     {
-        int i = _length;
-        var chars = _charArray;
-        if (i < chars.Length)
-        {
-            chars[i] = ch;
-            _length = i + 1;
-        }
-        else
-        {
-            GrowWrite(ch);
-        }
-
+        _writer.Write(ch);
         return this;
     }
 
@@ -165,21 +57,7 @@ public sealed class CodeWriter : IDisposable
 
     public CodeWriter Write(string? text)
     {
-        if (text is not null)
-        {
-            int len = text.Length;
-            var available = Available;
-            if (len <= available.Length)
-            {
-                TextHelper.CopyTo(text.AsSpan(), available);
-                _length += len;
-            }
-            else
-            {
-                GrowWrite(text);
-            }
-        }
-
+        _writer.Write(text);
         return this;
     }
 
@@ -190,18 +68,7 @@ public sealed class CodeWriter : IDisposable
 
     public CodeWriter Write(ReadOnlySpan<char> text)
     {
-        int len = text.Length;
-        var available = Available;
-        if (len <= available.Length)
-        {
-            TextHelper.CopyTo(text, available);
-            _length += len;
-        }
-        else
-        {
-            GrowWrite(text);
-        }
-
+        _writer.Write(text);
         return this;
     }
 
@@ -215,51 +82,51 @@ public sealed class CodeWriter : IDisposable
         switch (value)
         {
             case null:
-            {
-                return this;
-            }
+                {
+                    return this;
+                }
             // CWA support for neat tricks
             case CWA codeWriterAction:
-            {
-                var oldIndent = _newLineIndent;
-                var currentIndent = CurrentNewLineIndent();
-                _newLineIndent = currentIndent;
-                codeWriterAction(this);
-                _newLineIndent = oldIndent;
-                return this;
-            }
+                {
+                    var oldIndent = _newLineIndent;
+                    var currentIndent = CurrentNewLineIndent();
+                    _newLineIndent = currentIndent;
+                    codeWriterAction(this);
+                    _newLineIndent = oldIndent;
+                    return this;
+                }
             case string str:
-            {
-                return CodeBlock(str);
-            }
+                {
+                    return CodeBlock(str);
+                }
             case IFormattable formattable:
-            {
-                return Write(formattable.ToString(format, default));
-            }
+                {
+                    return Write(formattable.ToString(format, default));
+                }
             case IEnumerable enumerable:
-            {
-                if (!string.IsNullOrEmpty(format))
                 {
-                    return Delimit(format!, enumerable.Cast<object?>(), static (w, v) => w.Write(v));
+                    if (!string.IsNullOrEmpty(format))
+                    {
+                        return Delimit(format!, enumerable.Cast<object?>(), static (w, v) => w.Write(v));
+                    }
+                    else
+                    {
+                        return EnumerateWrite(enumerable.Cast<object?>());
+                    }
                 }
-                else
-                {
-                    return EnumerateWrite(enumerable.Cast<object?>());
-                }
-            }
             case ITypeSymbol typeSymbol:
-            {
-                var str = typeSymbol.ToString();
-                return Write(str);
-            }
+                {
+                    var str = typeSymbol.ToString();
+                    return Write(str);
+                }
             default:
-            {
-                var tType = typeof(T);
-                var valueType= value?.GetType();
-            
-                Debugger.Break();
-                return Write(value?.ToString());
-            }
+                {
+                    var tType = typeof(T);
+                    var valueType = value?.GetType();
+
+                    Debugger.Break();
+                    return Write(value?.ToString());
+                }
         }
     }
 
@@ -295,7 +162,7 @@ public sealed class CodeWriter : IDisposable
 
     public CodeWriter CodeBlock(NonFormattableString nonFormattableString)
     {
-        ReadOnlySpan<char> text = nonFormattableString.Text;
+        ReadOnlySpan<char> text = nonFormattableString.CharSpan;
         int textLen = text.Length;
 
         ReadOnlySpan<char> newLine = Environment.NewLine.AsSpan();
@@ -671,16 +538,16 @@ public sealed class CodeWriter : IDisposable
                 // Single line
                 return Write("// ").WriteLine(comment);
             default:
-            {
-                using var e = lines.GetEnumerator();
-                e.MoveNext();
-                Write("/* ").WriteLine(comment.AsSpan(e.Current.start, e.Current.length));
-                while (e.MoveNext())
                 {
-                    Write(" * ").WriteLine(comment.AsSpan(e.Current.start, e.Current.length));
+                    using var e = lines.GetEnumerator();
+                    e.MoveNext();
+                    Write("/* ").WriteLine(comment.AsSpan(e.Current.start, e.Current.length));
+                    while (e.MoveNext())
+                    {
+                        Write(" * ").WriteLine(comment.AsSpan(e.Current.start, e.Current.length));
+                    }
+                    return WriteLine(" */");
                 }
-                return WriteLine(" */");
-            }
         }
     }
 
@@ -722,8 +589,8 @@ public sealed class CodeWriter : IDisposable
 
     public CodeWriter BracketBlock(CWA bracketBlock, string indent = _defaultIndent)
     {
-        return TrimEndWhiteSpace()
-            .NewLine()
+        _writer.TrimEndWhiteSpace();
+        return NewLine()
             .WriteLine('{')
             .IndentBlock(indent, bracketBlock)
             .EnsureOnNewLine()
@@ -744,9 +611,9 @@ public sealed class CodeWriter : IDisposable
         indentBlock(this);
         _newLineIndent = oldIndent;
         // Did we do a nl that we need to decrease?
-        if (Written.EndsWith(newIndent.AsSpan()))
+        if (_writer.Written.EndsWith(newIndent.AsSpan()))
         {
-            _length -= newIndent.Length;
+            _writer.Length -= newIndent.Length;
             return Write(oldIndent);
         }
 
@@ -907,10 +774,10 @@ public sealed class CodeWriter : IDisposable
 
     internal string CurrentNewLineIndent()
     {
-        var lastNewLineIndex = Written.LastIndexOf(_defaultNewLine.AsSpan());
+        var lastNewLineIndex = _writer.Written.LastIndexOf(_defaultNewLine.AsSpan());
         if (lastNewLineIndex == -1)
             return _defaultNewLine;
-        return Written.Slice(lastNewLineIndex).ToString();
+        return _writer.Written.Slice(lastNewLineIndex).ToString();
     }
 
     #endregion
@@ -922,31 +789,10 @@ public sealed class CodeWriter : IDisposable
     /// </summary>
     public CodeWriter EnsureOnNewLine()
     {
-        if (!Written.EndsWith(_newLineIndent.AsSpan()))
+        if (!_writer.Written.EndsWith(_newLineIndent.AsSpan()))
         {
             return NewLine();
         }
-
-        return this;
-    }
-
-    #endregion
-
-    #region Trim
-
-    public CodeWriter TrimEndWhiteSpace()
-    {
-        int i = _length - 1;
-        for (; i >= 0; i--)
-        {
-            if (!char.IsWhiteSpace(_charArray[i]))
-            {
-                break;
-            }
-        }
-
-        // Length has to include the last char
-        _length = i + 1;
         return this;
     }
 
@@ -958,13 +804,7 @@ public sealed class CodeWriter : IDisposable
     /// </summary>
     public void Dispose()
     {
-        char[]? toReturn = _charArray;
-        _charArray = null!;
-        _length = 0;
-        if (toReturn is not null)
-        {
-            ArrayPool<char>.Shared.Return(toReturn);
-        }
+        _writer.Dispose();
     }
 
     [EditorBrowsable(EditorBrowsableState.Never)]
@@ -981,6 +821,6 @@ public sealed class CodeWriter : IDisposable
 
     public override string ToString()
     {
-        return new string(_charArray, 0, _length);
+        return _writer.ToString();
     }
 }

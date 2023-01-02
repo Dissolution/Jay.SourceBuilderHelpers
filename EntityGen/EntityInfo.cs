@@ -1,5 +1,6 @@
 ﻿using Jay.EntityGen.Attributes;
 using Jay.SourceGen;
+using Jay.SourceGen.Extensions;
 
 namespace Jay.EntityGen;
 

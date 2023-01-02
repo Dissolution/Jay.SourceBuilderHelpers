@@ -2,7 +2,7 @@
 
 using Microsoft.CodeAnalysis.Text;
 
-namespace Jay.SourceGen;
+namespace Jay.SourceGen.Code;
 
 public sealed record class CodeSource(string HintName, SourceText Text)
 {

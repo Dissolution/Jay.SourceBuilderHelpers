@@ -1,4 +1,4 @@
-﻿namespace Jay.SourceGen.Text;
+﻿namespace Jay.SourceGen.Extensions;
 
 internal static class CharSpanExtensions
 {
@@ -30,7 +30,7 @@ internal static class CharSpanExtensions
         if (e > span.Length)
         {
             // Adjust length back by that amount
-            l -= (e - span.Length);
+            l -= e - span.Length;
         }
         // We have a safe slice
         return span.Slice(s, l);
