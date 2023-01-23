@@ -1,7 +1,6 @@
 ﻿using Jay.SourceGen.Text;
 
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 
 namespace Jay.SourceGen.Extensions;
 
@@ -25,10 +24,7 @@ public static class TypeSymbolExtensions
 
     public static string GetVariableName(this ITypeSymbol typeSymbol)
     {
-        string name = typeSymbol.Name.WithNaming(Naming.Camel);
-        if (SyntaxFacts.IsValidIdentifier(name))
-            return name;
-        return $"@{name}";
+        return typeSymbol.Name.WithNaming(Naming.Variable);
     }
 
     public static bool CanBeNull(this ITypeSymbol typeSymbol)

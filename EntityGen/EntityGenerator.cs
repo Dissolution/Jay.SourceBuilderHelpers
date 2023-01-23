@@ -9,47 +9,75 @@ using Jay.SourceGen.Code;
 
 namespace Jay.EntityGen;
 
+public abstract class SyntaxIncrementalGenerator
+{
+    public static bool IsSyntaxNode<TSyntax>(SyntaxNode syntaxNode, string attributeName, CancellationToken _ = default)
+        where TSyntax : MemberDeclarationSyntax
+    {
+        // Has to be our specific syntax
+        if (syntaxNode is not TSyntax syntax)
+        {
+            return false;
+        }
+
+        // Has to be partial
+        if (!syntax.Modifiers.Any(SyntaxKind.PartialKeyword))
+        {
+            return false;
+        }
+
+        // Has to have our attribute
+        if (syntax.AttributeLists.Count == 0)
+        {
+            return false;
+        }
+
+        if (syntax.AttributeLists
+            .SelectMany(al => al.Attributes)
+            .Any(attr => attr.Name.IdentifierName() == attributeName))
+        {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+
 [Generator]
 public class EntityGenerator : IIncrementalGenerator
 {
     private static bool CouldBeEntityAttributeAsync(SyntaxNode syntaxNode, CancellationToken _)
     {
-        if (syntaxNode is not AttributeSyntax attribute)
+        if (syntaxNode is not AttributeSyntax attributeSyntax)
             return false;
 
-        var name = ExtractName(attribute.Name);
+        var name = attributeSyntax.Name.IdentifierName();
 
-        return name is SourceNames.ClassAttributeName or SourceNames.ClassAttributeShortName;
-    }
-
-    private static string? ExtractName(NameSyntax? name)
-    {
-        return name switch
-        {
-            SimpleNameSyntax ins => ins.Identifier.Text,
-            QualifiedNameSyntax qns => qns.Right.Identifier.Text,
-            _ => null
-        };
+        return name is nameof(EntityAttribute) or "Entity";
     }
 
     private static TypeDeclarationSyntax? GetTypeDeclarationOrNull(GeneratorSyntaxContext context, CancellationToken _)
     {
-        Debug.Assert(context.Node is AttributeSyntax);
-        var attributeSyntax = (AttributeSyntax)context.Node;
+        var attributeSyntax = (context.Node as AttributeSyntax);
 
         // "attribute.Parent" is "AttributeListSyntax"
-        Debug.Assert(attributeSyntax.Parent is AttributeListSyntax);
-
+        var attributeParent = (attributeSyntax?.Parent as AttributeListSyntax);
+        
         // "attribute.Parent.Parent" is a C# fragment the attributes are applied to
-        var fragment = attributeSyntax.Parent?.Parent;
+        var fragment = attributeParent?.Parent;
 
         if (fragment is TypeDeclarationSyntax typeDeclarationSyntax)
         {
+            if (!typeDeclarationSyntax.Modifiers.Any(SyntaxKind.PartialKeyword))
+                Debugger.Break();
+
             return typeDeclarationSyntax;
         }
 
         // Did not find a type declaration (weird?)
         Debugger.Break();
+
         return null;
     }
 
@@ -80,11 +108,13 @@ public class EntityGenerator : IIncrementalGenerator
         INamedTypeSymbol typeSymbol = semanticModel.GetDeclaredSymbol(typeDeclarationSyntax)!;
         if (typeSymbol is null) throw new InvalidOperationException();
 
+        var isSealed = typeDeclarationSyntax.Modifiers.Any(SyntaxKind.SealedKeyword);
+
         // Get all the members
         ImmutableArray<ISymbol> typeMembers = typeSymbol.GetMembers();
 
         // Get all of them that have the Key attribute
-        var members = new List<EntityMember>();
+        var members = new List<EntityMemberInfo>();
 
         // Scan for instances of our Key attribute
         foreach (ISymbol member in typeMembers)
@@ -102,6 +132,11 @@ public class EntityGenerator : IIncrementalGenerator
                 attributes = field.GetAttributes();
                 memberType = field.Type;
             }
+            else if (member is IEventSymbol @event)
+            {
+                attributes = @event.GetAttributes();
+                memberType = @event.Type;
+            }
             else
             {
                 continue;
@@ -110,7 +145,7 @@ public class EntityGenerator : IIncrementalGenerator
             var keyAttr = attributes.FirstOrDefault(attr =>
             {
                 string? attrName = attr.AttributeClass?.Name;
-                return attrName is SourceNames.PropAttributeName or SourceNames.PropAttributeShortName;
+                return attrName is nameof(KeyAttribute) or "Key";
             });
 
             if (keyAttr is not null)
@@ -120,33 +155,55 @@ public class EntityGenerator : IIncrementalGenerator
                 KeyKind keyKind = KeyKind.None;
                 if (attrArgs.TryGetValue("Kind", out object? kind))
                 {
-                    Debug.Assert(kind is not null);
-                    Debug.Assert(Enum.IsDefined(typeof(KeyKind), kind));
-                    keyKind = (KeyKind)kind;
+                    if (kind is null || !Enum.IsDefined(typeof(KeyKind), kind))
+                    {
+                        throw new InvalidOperationException();
+                    }
+                    keyKind = (KeyKind)kind!;
                 }
 
                 if (keyKind != KeyKind.None)
                 {
-                    members.Add(new(
-                        member.Name,
-                        memberType,
-                        keyKind));
+                    members.Add(new(member.Name, memberType, keyKind));
                 }
             }
         }
 
-        var entityInfo = new EntityInfo(typeSymbol, members, true);
-
-        yield return EquatableCodeSource.Generate(entityInfo);
-
-        if (members.Count(m => m.Kind.HasFlag(KeyKind.Comparison)) == 1)
+        EntityInfo entityInfo = new EntityInfo
         {
-            yield return ComparableCodeSource.Generate(entityInfo);
+            Type = typeSymbol,
+            Members = members,
+            IsSealed = isSealed,
+        };
+
+        if (CodeSources.GenerateDeconstruct(entityInfo, out var deconstructSource))
+        {
+            yield return deconstructSource!;
         }
 
-        yield return FormattableCodeSource.Generate(entityInfo);
+        if (CodeSources.GenerateEquality(entityInfo, out var equalitySource))
+        {
+            yield return equalitySource!;
+        }
+
+        if (CodeSources.GenerateComparison(entityInfo, out var comparisonSource))
+        {
+            yield return comparisonSource!;
+        }
+
+        if (CodeSources.GenerateFormattable(entityInfo, out var formattableSource))
+        {
+            yield return formattableSource!;
+        }
+
+        if (CodeSources.GenerateDisposable(entityInfo, out var disposableSource))
+        {
+            yield return disposableSource!;
+        }
     }
 
+
+    /// <inheritdoc cref="IIncrementalGenerator"/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
 #if ATTACH
@@ -156,24 +213,14 @@ public class EntityGenerator : IIncrementalGenerator
         }
 #endif
 
-        //// Add our main Attribute
-        //context.RegisterPostInitializationOutput(ctx =>
-        //{
-        //    ctx.AddSource($"{Code.EntityAttribute.Name}.g.cs",
-        //        SourceText.From(Code.EntityAttribute.Code, Encoding.UTF8));
-
-        //    ctx.AddSource($"EntityPropAttributes.g.cs",
-        //        SourceText.From(Code.PropertyAttributes.Code, Encoding.UTF8));
-        //});
-
         // First pass simple filter
         IncrementalValuesProvider<TypeDeclarationSyntax> enumDeclarations = context
             .SyntaxProvider
             .CreateSyntaxProvider(
                 // select all of our attribute
-                predicate: static (s, t) => CouldBeEntityAttributeAsync(s, t),
+                predicate: static (syntaxNode, token) => CouldBeEntityAttributeAsync(syntaxNode, token),
                 // get the type they are declared upon
-                transform: static (ctx, t) => GetTypeDeclarationOrNull(ctx, t))
+                transform: static (generatorSyntaxContext, token) => GetTypeDeclarationOrNull(generatorSyntaxContext, token))
             // Cleanup
             .Where(static m => m is not null)!;
 
@@ -185,6 +232,6 @@ public class EntityGenerator : IIncrementalGenerator
 
         // Generate the output source
         context.RegisterSourceOutput(combined,
-            static (spc, src) => AddCodeSources(spc, src.Compilation, src.TypeDeclarations));
+            static (sourceProductionContext, tuple) => AddCodeSources(sourceProductionContext, tuple.Compilation, tuple.TypeDeclarations));
     }
 }

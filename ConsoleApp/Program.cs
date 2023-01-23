@@ -1,10 +1,11 @@
-﻿using System.Diagnostics;
-using System.Numerics;
+﻿using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Reflection;
 using Jay.SourceGen.ConsoleApp;
 using Jay.EntityGen.Attributes;
-using Jay.SourceGen;
-using Jay.SourceGen.Code;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 #if RELEASE
 var config = DefaultConfig.Instance
@@ -19,44 +20,84 @@ var outputPath = result.ResultsDirectoryPath;
 //Process.Start(outputPath);
 #else
 
+var type = typeof(MethodDeclarationSyntax);
+var ifaces = type.GetInterfaces();
+var types = new List<Type>();
+types.Add(type);
+while ((type = type.BaseType) != null)
+{
+    types.Add(type);
+}
+
+Debugger.Break();
+
+
+MemberDeclarationSyntax snoo = default!;
+var attrs = snoo.AttributeLists;
+var mods = snoo.Modifiers;
+
+/*
+
 
 var entityType = typeof(EntityBase);
 var interfaces = entityType.GetInterfaces();
 var members = entityType.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
 var entity = Activator.CreateInstance<EntityBase>();
-entity.Name = "First";
+entity.Id = 147;
+entity.Name = "Original";
 
-var otherEntity = new EntityBase { Id = 0, Name = "joe" };
+var otherEntity = new EntityBase { Id = 147, Name = "New" };
 
-var eq = entity.Equals(otherEntity);
-var eq2 = entity == otherEntity;
+var eqA = entity.Equals(otherEntity);
+Debug.Assert(eqA);
+var eqB = entity == otherEntity;
+Debug.Assert(eqB);
 
+var strA = entity.ToString();
+var strB = otherEntity.ToString();
+
+entity.Deconstruct(out var idA);
+otherEntity.Deconstruct(out var idB);
+Debug.Assert(idA == idB);
 
 int c = entity.CompareTo(otherEntity);
+Debug.Assert(c == 0);
 
-string str = otherEntity.ToString();
+entity!.Explode += (s,e) => { Console.WriteLine($"[{DateTime.Now}]\tsender: {s}\targs:{e}");};
+entity.OnExplode(EventArgs.Empty);
+entity.Dispose();
+entity.OnExplode(EventArgs.Empty);
 
-//string strD = otherEntity.ToString("d");
+*/
 
-
-
+Console.WriteLine("Press Enter to close this window.");
+Debugger.Break();
+Console.ReadLine();
 Debugger.Break();
 
 namespace Jay.SourceGen.ConsoleApp
 {
     [Entity]
-    public partial class EntityBase //: IEquatable<EntityBase>
+    public partial class EntityBase 
     {
         [Key]
         public int Id { get; set; }
 
         [Key(KeyKind.Display)]
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
 
-        [Key(KeyKind.Display)]
         public Guid Guid { get; set; } = Guid.NewGuid();
+
+        [Key(KeyKind.Dispose)]
+        public event EventHandler? Explode;
+
+        public void OnExplode(EventArgs args)
+        {
+            this.Explode?.Invoke(this, args);
+        }
     }
 
+    /*
     public class AnotherClass
     {
 
@@ -175,7 +216,7 @@ namespace Jay.SourceGen.ConsoleApp
         Gamma = 1 << 2,
         Delta = 1 << 3,
     }
-
+    */
 
 
 /*

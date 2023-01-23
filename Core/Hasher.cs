@@ -4,17 +4,21 @@ namespace Jay.SourceGen;
 
 public static class Hasher
 {
-     public static int GenerateHashCode<T>(ImmutableArray<T> array)
+    private const int SEED = 1009;
+    private const int MULTIPLIER = 9176;
+
+    public static int GenerateHashCode<T>(ImmutableArray<T> array)
     {
         unchecked
         {
-            int hash = 1009;
+            int hash = SEED;
             int count = array.Length;
             for (var i = 0; i < count; i++)
             {
                 var itemHash = (array[i]?.GetHashCode() ?? 0);
-                hash = (hash * 9176) + itemHash;
+                hash = (hash * MULTIPLIER) + itemHash;
             }
+
             return hash;
         }
     }
@@ -23,13 +27,14 @@ public static class Hasher
     {
         unchecked
         {
-            int hash = 1009;
+            int hash = SEED;
             int count = array.Length;
             for (var i = 0; i < count; i++)
             {
                 var itemHash = getItemHash(array[i]);
-                hash = (hash * 9176) + itemHash;
+                hash = (hash * MULTIPLIER) + itemHash;
             }
+
             return hash;
         }
     }
@@ -38,13 +43,14 @@ public static class Hasher
     {
         unchecked
         {
-            int hash = 1009;
+            int hash = SEED;
             int count = values.Count;
             for (var i = 0; i < count; i++)
             {
                 var itemHash = (values[i]?.GetHashCode() ?? 0);
-                hash = (hash * 9176) + itemHash;
+                hash = (hash * MULTIPLIER) + itemHash;
             }
+
             return hash;
         }
     }
@@ -53,14 +59,14 @@ public static class Hasher
     {
         unchecked
         {
-            int hash = 1009;
+            int hash = SEED;
             foreach (var value in values)
             {
                 var itemHash = (value?.GetHashCode() ?? 0);
-                hash = (hash * 9176) + itemHash;
-            }          
+                hash = (hash * MULTIPLIER) + itemHash;
+            }
+
             return hash;
         }
     }
 }
-

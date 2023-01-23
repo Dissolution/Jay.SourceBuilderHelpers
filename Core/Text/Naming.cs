@@ -2,6 +2,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace Jay.SourceGen.Text;
 
@@ -85,11 +86,14 @@ public enum Naming
     /// "MEMBERNAME" -> "_mEMBERNAME"<br/>
     /// </remarks>
     Field,
+
+    Variable,
+
 }
 
 public static class NamingExtensions
 {
-    private static readonly TextInfo _textInfo = CultureInfo.CurrentCulture.TextInfo;
+    internal static readonly TextInfo TextInfo = CultureInfo.CurrentCulture.TextInfo;
 
     [return: NotNullIfNotNull(nameof(text))]
     public static string? WithNaming(this string? text, Naming naming)
@@ -98,46 +102,53 @@ public static class NamingExtensions
         switch (naming)
         {
             case Naming.Lower:
-                return _textInfo.ToLower(text);
+                return TextInfo.ToLower(text);
             case Naming.Upper:
-                return _textInfo.ToUpper(text);
-            case Naming.Camel:
+                return TextInfo.ToUpper(text);
+            case Naming.Camel or Naming.Variable:
             {
                 int len = text.Length;
                 if (len == 0) return "";
-                if (char.IsLower(text[0])) return text;
-                Span<char> name = stackalloc char[len];
-                name[0] = _textInfo.ToLower(text[0]);
-                for (var i = 1; i < len; i++)
+                string name;
+                if (!char.IsLower(text[0]))
                 {
-                    name[i] = text[i];
+                    Span<char> nameBuffer = stackalloc char[len];
+                    nameBuffer[0] = TextInfo.ToLower(text[0]);
+                    text.AsSpan(1).CopyTo(nameBuffer.Slice(1));
+                    name = nameBuffer.ToString();
+                }
+                else
+                {
+                    name = text;
                 }
 
-                return name.ToString();
+                if (naming == Naming.Variable)
+                {
+                    if (!SyntaxFacts.IsValidIdentifier(name))
+                        return $"@{name}";
+                }
+
+                return name;
             }
             case Naming.Pascal:
             {
                 int len = text.Length;
                 if (len == 0) return "";
                 if (char.IsUpper(text[0])) return text;
-                Span<char> name = stackalloc char[len];
-                name[0] = _textInfo.ToUpper(text[0]);
-                for (var i = 1; i < len; i++)
-                {
-                    name[i] = text[i];
-                }
-
-                return name.ToString();
+                Span<char> nameBuffer = stackalloc char[len];
+                nameBuffer[0] = TextInfo.ToUpper(text[0]);
+                text.AsSpan(1).CopyTo(nameBuffer.Slice(1));
+                return nameBuffer.ToString();
             }
             case Naming.Title:
-                return _textInfo.ToTitleCase(text);
+                return TextInfo.ToTitleCase(text);
             case Naming.Snake:
             {
                 int len = text.Length;
                 if (len < 2) return text;
-                Span<char> name = stackalloc char[len * 2]; // Aggresive
+                Span<char> nameBuffer = stackalloc char[len * 2]; // Aggressive
                 // First char
-                name[0] = text[0];
+                nameBuffer[0] = text[0];
                 int n = 1;
                 // The rest
                 for (var i = 1; i < len; i++)
@@ -145,28 +156,21 @@ public static class NamingExtensions
                     char ch = text[i];
                     if (char.IsUpper(ch))
                     {
-                        name[n++] = '_';
+                        nameBuffer[n++] = '_';
                     }
-                    name[n++] = ch;
+                    nameBuffer[n++] = ch;
                 }
-                return name.Slice(0, n).ToString();
+                return nameBuffer.Slice(0, n).ToString();
             }
             case Naming.Field:
             {
                 int len = text.Length;
                 if (len == 0) return "";
-                Span<char> name = stackalloc char[len + 1];
-                name[0] = '_';
-                name[1] = _textInfo.ToLower(text[0]);
-                int i = 1;
-                while (i < len)
-                {
-                    char ch = text[i];
-                    i += 1;
-                    name[i] = ch;
-                }
-
-                return name.ToString();
+                Span<char> nameBuffer = stackalloc char[len + 1];
+                nameBuffer[0] = '_';
+                nameBuffer[1] = TextInfo.ToLower(text[0]);
+                text.AsSpan(1).CopyTo(nameBuffer.Slice(2));
+                return nameBuffer.ToString();
             }
             case Naming.Default:
             default:

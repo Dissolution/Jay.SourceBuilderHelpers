@@ -2,13 +2,11 @@
 
 namespace Jay.EntityGen.Attributes;
 
-[AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
+[AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class)]
 public sealed class EntityAttribute : Attribute
 {
-    public bool Nullability { get; set; } = true;
-
     public EntityAttribute()
     {
-        
+
     }
 }

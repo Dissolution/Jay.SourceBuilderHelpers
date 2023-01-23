@@ -798,6 +798,15 @@ public sealed class CodeWriter : IDisposable
 
     #endregion
 
+    public CodeWriter TrimEnd(string trimStr)
+    {
+        if (_writer.Written.EndsWith(trimStr.AsSpan()))
+        {
+            _writer.Length -= trimStr.Length;
+        }
+        return this;
+    }
+
 
     /// <summary>
     /// Returns all resources back to the shared pool
