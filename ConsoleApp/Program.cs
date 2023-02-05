@@ -1,5 +1,6 @@
 ﻿using System.Collections.Specialized;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Reflection;
 using Jay.SourceGen.ConsoleApp;
@@ -20,6 +21,7 @@ var outputPath = result.ResultsDirectoryPath;
 //Process.Start(outputPath);
 #else
 
+/*
 var type = typeof(MethodDeclarationSyntax);
 var ifaces = type.GetInterfaces();
 var types = new List<Type>();
@@ -35,8 +37,9 @@ Debugger.Break();
 MemberDeclarationSyntax snoo = default!;
 var attrs = snoo.AttributeLists;
 var mods = snoo.Modifiers;
+*/
 
-/*
+
 
 
 var entityType = typeof(EntityBase);
@@ -56,6 +59,7 @@ Debug.Assert(eqB);
 var strA = entity.ToString();
 var strB = otherEntity.ToString();
 
+/*
 entity.Deconstruct(out var idA);
 otherEntity.Deconstruct(out var idB);
 Debug.Assert(idA == idB);
@@ -83,12 +87,12 @@ namespace Jay.SourceGen.ConsoleApp
         [Key]
         public int Id { get; set; }
 
-        [Key(KeyKind.Display)]
+        [Display]
         public string Name { get; set; } = "";
 
         public Guid Guid { get; set; } = Guid.NewGuid();
 
-        [Key(KeyKind.Dispose)]
+        [Dispose]
         public event EventHandler? Explode;
 
         public void OnExplode(EventArgs args)

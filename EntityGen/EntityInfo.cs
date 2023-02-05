@@ -15,8 +15,14 @@ internal sealed class EntityInfo
     public string TypeName => Type.Name;
     public string VarName => Type.Name.WithNaming(Naming.Variable);
     
-    public IReadOnlyList<EntityMemberInfo> MembersOfKind(KeyKind kind)
+    public IReadOnlyList<EntityMemberInfo> MembersWithAttribute<TAttribute>()
+        where TAttribute : Attribute
     {
-        return Members.Where(member => member.Kind.HasFlag(kind)).ToList();
+        return Members.Where(member => member.AttributeData.ContainsKey(nameof(TAttribute))).ToList();
+    }
+
+     public IReadOnlyList<EntityMemberInfo> MembersWithAttribute(string attributeName)
+    {
+        return Members.Where(member => member.AttributeData.ContainsKey(attributeName)).ToList();
     }
 }

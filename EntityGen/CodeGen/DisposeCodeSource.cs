@@ -8,7 +8,7 @@ internal static partial class CodeSources
 {
     public static bool GenerateDisposable(EntityInfo entityInfo, out CodeSource? codeSource)
     {
-        var disposeMembers = entityInfo.MembersOfKind(KeyKind.Dispose);
+        var disposeMembers = entityInfo.MembersWithAttribute<DisposeAttribute>();
         if (disposeMembers.Count == 0)
         {
             codeSource = null;
@@ -29,7 +29,7 @@ internal static partial class CodeSources
                 {
                     public{{(entityInfo.IsSealed ? " " : " virtual ")}} void Dispose()
                     {
-                        {{(CWA)(cw => cw.DelimitLines(disposeMembers, static (w, m) => w.Write($"this.{m.Name} = default;")))}}
+                        {{(CWA)(cw => cw.DelimitLines(disposeMembers, static (w, m) => w.Write($"this.{m.Name} = default!;")))}}
                     }
                 }
                 """);

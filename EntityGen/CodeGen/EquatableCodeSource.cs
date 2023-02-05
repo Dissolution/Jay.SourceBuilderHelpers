@@ -8,7 +8,7 @@ internal static partial class CodeSources
 {
     public static bool GenerateEquality(EntityInfo entityInfo, out CodeSource? codeSource)
     {
-        var equalityMembers = entityInfo.MembersOfKind(KeyKind.Equality);
+        var equalityMembers = entityInfo.MembersWithAttribute("KeyAttribute");
         if (equalityMembers.Count == 0)
         {
             codeSource = null;

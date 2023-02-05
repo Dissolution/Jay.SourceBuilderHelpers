@@ -142,31 +142,24 @@ public class EntityGenerator : IIncrementalGenerator
                 continue;
             }
 
-            var keyAttr = attributes.FirstOrDefault(attr =>
+            // Check for attributes
+            var attrData = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+
+            var keyAttribute = attributes.Find("KeyAttribute");
+            if (keyAttribute is not null)
             {
-                string? attrName = attr.AttributeClass?.Name;
-                return attrName is nameof(KeyAttribute) or "Key";
-            });
-
-            if (keyAttr is not null)
-            {
-                var attrArgs = keyAttr.GetArgs();
-
-                KeyKind keyKind = KeyKind.None;
-                if (attrArgs.TryGetValue("Kind", out object? kind))
-                {
-                    if (kind is null || !Enum.IsDefined(typeof(KeyKind), kind))
-                    {
-                        throw new InvalidOperationException();
-                    }
-                    keyKind = (KeyKind)kind!;
-                }
-
-                if (keyKind != KeyKind.None)
-                {
-                    members.Add(new(member.Name, memberType, keyKind));
-                }
+                attrData["KeyAttribute"] = null;
             }
+
+            var displayAttribute = attributes.Find("DisplayAttribute");
+            if (displayAttribute is not null)
+            {
+                var attrArgs = displayAttribute.GetArgs();
+                //Debugger.Break();
+                attrData["DisplayAttribute"] = attrArgs;
+            }
+
+            members.Add(new(member.Name, memberType, attrData));
         }
 
         EntityInfo entityInfo = new EntityInfo
@@ -176,7 +169,7 @@ public class EntityGenerator : IIncrementalGenerator
             IsSealed = isSealed,
         };
 
-        if (CodeSources.GenerateDeconstruct(entityInfo, out var deconstructSource))
+        if (CodeSources.GenerateDeconstructor(entityInfo, out var deconstructSource))
         {
             yield return deconstructSource!;
         }

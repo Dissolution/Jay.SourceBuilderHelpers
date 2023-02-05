@@ -8,12 +8,19 @@ internal static partial class CodeSources
 {
     public static bool GenerateFormattable(EntityInfo entityInfo, out CodeSource? codeSource)
     {
-        var displayMembers = entityInfo.MembersOfKind(KeyKind.Display);
+        var displayMembers = entityInfo.Members.Where(member =>
+        {
+            var attributes = member.AttributeData;
+            return attributes.ContainsKey("KeyAttribute") ||
+                attributes.ContainsKey("DisplayAttribute");
+        }).ToList();
         if (displayMembers.Count == 0)
         {
             codeSource = null;
             return false;
         }
+
+        // Todo: Support for DisplayAttribute's args
 
         using var writer = new CodeWriter();
 

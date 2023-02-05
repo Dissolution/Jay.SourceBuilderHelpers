@@ -8,7 +8,7 @@ internal static partial class CodeSources
 {
     public static bool GenerateComparison(EntityInfo entityInfo, out CodeSource? codeSource)
     {
-        var compareMembers = entityInfo.MembersOfKind(KeyKind.Equality);
+        var compareMembers = entityInfo.MembersWithAttribute("KeyAttribute");
         if (compareMembers.Count == 0)
         {
             codeSource = null;

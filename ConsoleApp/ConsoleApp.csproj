@@ -18,14 +18,13 @@
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.4.0" PrivateAssets="all" />
     </ItemGroup>
 
+   
     <ItemGroup>
 
 
         <ProjectReference Include="..\Core\Jay.SourceGen.csproj" />
-        <ProjectReference Include="..\EntityGen\Jay.EntityGen.csproj" OutputItemType="Analyzer"
-                          ReferenceOutputAssembly="false" PrivateAssets="all" />
-        <ProjectReference Include="..\Jay.EntityGen.Attributes\Jay.EntityGen.Attributes.csproj"
-                          OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+        <ProjectReference Include="..\EntityGen\Jay.EntityGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+        <ProjectReference Include="..\Jay.EntityGen.Attributes\Jay.EntityGen.Attributes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
 
         <!--<ProjectReference Include="..\EnumGen\EnumGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />-->
     </ItemGroup>

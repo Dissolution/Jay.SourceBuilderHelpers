@@ -8,9 +8,9 @@ namespace Jay.EntityGen.CodeGen;
 
 internal static partial class CodeSources
 {
-    public static bool GenerateDeconstruct(EntityInfo entityInfo, out CodeSource? codeSource)
+    public static bool GenerateDeconstructor(EntityInfo entityInfo, out CodeSource? codeSource)
     {
-        var equalityMembers = entityInfo.MembersOfKind(KeyKind.Equality);
+        var equalityMembers = entityInfo.MembersWithAttribute("KeyAttribute");
         if (equalityMembers.Count == 0)
         {
             codeSource = null;

@@ -7,6 +7,35 @@ namespace Jay.SourceGen.Extensions;
 
 public static class AttributeDataExtensions
 {
+    public static AttributeData? Find(this ImmutableArray<AttributeData> attributes, string attributeName)
+    {
+        for (int i = 0; i < attributes.Length; i++)
+        {
+            string? attrName = attributes[i].AttributeClass?.Name;
+            if (string.Equals(attrName, attributeName))
+                return attributes[i];
+        }
+        return null;
+    }
+
+    internal static object? GetObjectValue(this TypedConstant typedConstant)
+    {
+        if (typedConstant.Kind == TypedConstantKind.Array)
+        {
+            var values = typedConstant.Values;
+            object?[] array = new object?[values.Length];
+            for (var i = 0; i < values.Length; i++)
+            {
+                array[i] = GetObjectValue(values[i]);
+            }
+            return array;
+        }
+        else
+        {
+            return typedConstant.Value;
+        }
+    }
+
     public static IReadOnlyDictionary<string, object?> GetArgs(this AttributeData attributeData)
     {
         var args = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
@@ -21,12 +50,7 @@ public static class AttributeDataExtensions
             {
                 string name = ctorParams[i].Name;
                 Debug.Assert(args.ContainsKey(name) == false);
-                object? value;
-                var arg = ctorArgs[i];
-                if (arg.Kind == TypedConstantKind.Array)
-                    value = arg.Values;
-                else
-                    value = arg.Value;
+                object? value = ctorArgs[i].GetObjectValue();
                 args[name] = value;
             }
         }
@@ -40,11 +64,7 @@ public static class AttributeDataExtensions
                 var arg = namedArgs[i];
                 string name = arg.Key;
                 Debug.Assert(args.ContainsKey(name) == false);
-                object? value;
-                if (arg.Value.Kind == TypedConstantKind.Array)
-                    value = arg.Value.Values;
-                else
-                    value = arg.Value.Value;
+                object? value = arg.Value.GetObjectValue();
                 args[name] = value;
             }
         }
